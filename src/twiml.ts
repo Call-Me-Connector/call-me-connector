@@ -77,7 +77,7 @@ function gatherSpeech(vr: InstanceType<typeof VoiceResponse>, action: string, pr
     input: ["speech", "dtmf"],
     action,
     method: "POST",
-    speechTimeout: "auto",
+    speechTimeout: config.speechTimeout,
     speechModel: "phone_call",
     language: gatherLanguage,
     profanityFilter: false,

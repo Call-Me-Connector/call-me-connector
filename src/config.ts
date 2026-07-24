@@ -38,6 +38,12 @@ export const config = {
 
   voice: process.env.VOICE ?? "Polly.Joanna",
   language: process.env.LANGUAGE ?? "en-US",
+
+  // Seconds of silence to wait before ending speech capture. "auto" uses
+  // Twilio's smart endpointing (ends fast on any pause — cuts people off).
+  // A number (e.g. "5") waits that many seconds of silence, so a breath or a
+  // mid-thought pause won't hang up on you. Default 10.
+  speechTimeout: process.env.SPEECH_TIMEOUT ?? "10",
 };
 
 /**
