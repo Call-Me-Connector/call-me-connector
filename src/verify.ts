@@ -27,6 +27,24 @@ export function isE164(v: string): boolean {
   return /^\+[1-9]\d{6,14}$/.test(v);
 }
 
+/**
+ * Forgiving phone normalization so users can type spaces, dashes, parens, or a
+ * bare 10-digit US number. Returns a best-effort E.164 string (validate with
+ * isE164 afterwards).
+ *   "(219) 302-1613" -> "+12193021613"
+ *   "219 302 1613"   -> "+12193021613"
+ *   "+44 20 7946 0958" -> "+442079460958"
+ */
+export function normalizePhone(raw: string): string {
+  const trimmed = raw.trim();
+  const hasPlus = trimmed.startsWith("+");
+  const digits = trimmed.replace(/\D/g, "");
+  if (hasPlus) return "+" + digits;
+  if (digits.length === 10) return "+1" + digits; // US/Canada 10-digit
+  if (digits.length === 11 && digits.startsWith("1")) return "+" + digits;
+  return "+" + digits;
+}
+
 /** Send a verification code to the number via SMS or voice call. */
 export async function startVerification(e164: string): Promise<void> {
   assertVerifyConfig();

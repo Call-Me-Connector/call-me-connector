@@ -5,7 +5,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { config } from "./config.js";
 import { query } from "./db.js";
 import { authenticate, createUser, findById, setPhone, markPhoneVerified } from "./users.js";
-import { startVerification, checkVerification, isE164 } from "./verify.js";
+import { startVerification, checkVerification, isE164, normalizePhone } from "./verify.js";
 
 /**
  * Multi-tenant OAuth 2.1 authorization server.
@@ -166,7 +166,8 @@ function phonePage(flow: string, error?: string): string {
      ${error ? `<p class="err">${esc(error)}</p>` : ""}
      <form method="POST" action="/oauth/phone">
        <input type="hidden" name="flow" value="${esc(flow)}">
-       <label>Phone (E.164, e.g. +13125551234)<input type="tel" name="phone" placeholder="+1..." required></label>
+       <label>Phone number<input type="tel" name="phone" placeholder="(312) 555-1234" required></label>
+       <p class="sub" style="margin:0;font-size:.85rem">US numbers work as-is; spaces, dashes, and parentheses are fine. Outside the US, start with +.</p>
        <button type="submit">Send code</button>
      </form>`
   );
@@ -324,9 +325,9 @@ export function buildOAuthRouter(): Router {
     const b = req.body as Record<string, string>;
     const flow = await readFlow(b.flow ?? "");
     if (!flow?.userId) return res.status(400).type("text/plain").send("Your session expired. Please start over.");
-    const phone = (b.phone ?? "").trim();
+    const phone = normalizePhone(b.phone ?? "");
     if (!isE164(phone)) {
-      return res.status(400).type("text/html").send(phonePage(b.flow, "Enter a valid number like +13125551234."));
+      return res.status(400).type("text/html").send(phonePage(b.flow, "Enter a valid number, e.g. (312) 555-1234."));
     }
     try {
       await setPhone(flow.userId, phone);
