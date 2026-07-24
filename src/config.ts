@@ -34,7 +34,23 @@ export const config = {
   },
 
   // "basic" = one-shot calls only. "pro" = unlocks multi-turn conversation mode.
+  // In multi-tenant mode this is the DEFAULT tier for new signups; each user's
+  // own tier (from billing) overrides it.
   tier: tier as "basic" | "pro",
+
+  // ---- Multi-tenant (SaaS) mode ----
+  // When DATABASE_URL is set, the connector runs multi-tenant: users sign up,
+  // verify their own phone number, and calls go to THEIR number (USER_PHONE_NUMBER
+  // is ignored). Without it, the connector stays in single-user mode.
+  databaseUrl: process.env.DATABASE_URL ?? "",
+  get multiTenant() {
+    return this.databaseUrl.length > 0;
+  },
+  // Twilio Verify service SID, used to send/check phone verification codes.
+  verifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID ?? "",
+  // Channel for verification codes: "sms" or "call". Voice ("call") avoids the
+  // A2P 10DLC registration that SMS from a 10-digit number requires.
+  verifyChannel: (process.env.VERIFY_CHANNEL ?? "sms").toLowerCase() === "call" ? "call" : "sms",
 
   voice: process.env.VOICE ?? "Polly.Joanna",
   language: process.env.LANGUAGE ?? "en-US",
