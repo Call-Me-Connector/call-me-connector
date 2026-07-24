@@ -1,0 +1,38 @@
+# One-click-ish deploy to Render.com (free tier works for personal use).
+# After the first deploy, set PUBLIC_URL to the service's onrender.com URL and
+# fill in the Twilio + phone secrets in the Render dashboard.
+services:
+  - type: web
+    name: call-me-connector
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: PUBLIC_URL
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+      - key: USER_PHONE_NUMBER
+        sync: false
+      - key: ALLOW_NUMBER_OVERRIDE
+        value: "false"
+      - key: TIER
+        value: "basic"
+      - key: CONNECTOR_TOKEN
+        sync: false
+      - key: VALIDATE_TWILIO_SIGNATURE
+        value: "true"
+      # OAuth 2.1 — set both to enable (required for a public store listing).
+      - key: OAUTH_SIGNING_SECRET
+        generateValue: true
+      - key: OWNER_ACCESS_CODE
+        sync: false
+      - key: VOICE
+        value: Polly.Joanna
+      - key: LANGUAGE
+        value: en-US

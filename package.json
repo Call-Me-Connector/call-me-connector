@@ -1,0 +1,28 @@
+{
+  "name": "call-me-connector",
+  "version": "1.0.0",
+  "description": "MCP connector that phones your cell when a task is done, reads out its questions and next steps, then listens to your spoken instructions and hands them back to the model.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "express": "^4.19.2",
+    "jose": "^5.10.0",
+    "twilio": "^5.3.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.4"
+  }
+}
