@@ -6,9 +6,10 @@ step-by-step for listing it in the **Claude Connectors Directory** and the
 OpenAI's platforms — this doc gets you fully ready and tells you exactly what to
 click.
 
-Live URLs:
-- Site / privacy / terms: `https://call-me-connector.onrender.com` · `/privacy` · `/terms`
-- Connector (MCP): `https://call-me-connector.onrender.com/mcp`
+Live URLs (custom domain — live + SSL verified):
+- Site / privacy / terms: `https://getcallme.app` · `/privacy` · `/terms`
+- Connector (MCP): `https://getcallme.app/mcp`
+- (`https://call-me-connector.onrender.com` still resolves as a fallback.)
 
 ## ✅ Readiness checklist (all done in code)
 - [x] Remote MCP server over **HTTPS**
@@ -39,7 +40,7 @@ Live URLs:
 ## 1) Claude Connectors Directory
 Docs: <https://claude.com/docs/connectors/building/submission> · FAQ: <https://support.claude.com/en/articles/11596036-anthropic-connectors-directory-faq>
 
-1. First, **add it as a custom connector** to confirm it works: claude.ai → Settings → Connectors → Add custom connector → `https://call-me-connector.onrender.com/mcp`. Approve the OAuth consent (sign up + verify your number).
+1. First, **add it as a custom connector** to confirm it works: claude.ai → Settings → Connectors → Add custom connector → `https://getcallme.app/mcp`. Approve the OAuth consent (sign up + verify your number).
 2. Go to the **submission page** (docs link above) and submit the remote MCP URL, your privacy policy URL (`/privacy`), support contact, category, icon, and description.
 3. Provide the **reviewer demo account** credentials.
 4. Track status + reviewer feedback in the **submissions dashboard**. Reviews are manual; a missing/incomplete privacy policy is an instant reject (yours is complete).
@@ -51,13 +52,13 @@ Docs: <https://developers.openai.com/apps-sdk/app-submission-guidelines> · Subm
 2. **Verify your domain:** OpenAI gives you a token to serve as plain text. Set two env vars in Render and redeploy — the route is already built:
    - `OPENAI_VERIFICATION_PATH` = the path OpenAI specifies (e.g. `/.well-known/openai-domain-verification.txt`)
    - `OPENAI_VERIFICATION_TOKEN` = the token they give you
-   Then confirm it serves at `https://call-me-connector.onrender.com/<that path>`.
+   Then confirm it serves at `https://getcallme.app/<that path>`.
 3. Submit through the **plugin submission portal** with MCP connectivity details, testing guidelines, directory metadata, and country availability.
 
 ---
 
 ## Notes / nice-to-haves before going big
-- **Custom domain** (e.g. a `.com` you own) reads better on listings + card statements than `onrender.com`.
+- [x] **Custom domain** — `getcallme.app` is live with SSL and is now `PUBLIC_URL`.
 - **Always-on hosting:** upgrade the Render web service off the free (spins-down) plan so reviewer/customer calls aren't delayed ~50s on cold start.
-- **Merge `multi-tenant` → `main`** so the deployed product is the canonical branch.
+- [x] **Merge `multi-tenant` → `main`** — done; `main` is canonical.
 - Both stores scrutinize a tool that **places phone calls** — be ready to explain that it only ever calls the user's own verified number and is subscription-gated (both true).
