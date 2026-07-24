@@ -7,6 +7,7 @@ import { createMcpServer } from "./mcp.js";
 import { buildOutboundTwiml, buildCollectTwiml, buildRepromptTwiml } from "./twiml.js";
 import { buildOAuthRouter, verifyAccessToken } from "./oauth.js";
 import { buildAccountRouter } from "./account.js";
+import { buildSiteRouter } from "./site.js";
 import { handleWebhook } from "./billing.js";
 import { initSchema } from "./db.js";
 import type { CallStatus } from "./store.js";
@@ -39,16 +40,9 @@ if (config.multiTenant) {
 }
 
 // ---------------------------------------------------------------------------
-// Health check
+// Marketing site (landing, pricing, privacy, terms) + /healthz
 // ---------------------------------------------------------------------------
-app.get("/", (_req, res) => {
-  res.json({
-    name: "call-me-connector",
-    status: "ok",
-    mcp_endpoint: "/mcp",
-    mode: config.multiTenant ? "multi-tenant" : "single-user",
-  });
-});
+app.use(buildSiteRouter());
 
 // ---------------------------------------------------------------------------
 // MCP endpoint (Streamable HTTP, stateless) — this is the connector URL you

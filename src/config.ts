@@ -77,6 +77,10 @@ export const config = {
   voice: process.env.VOICE ?? "Polly.Joanna",
   language: process.env.LANGUAGE ?? "en-US",
 
+  // Public-facing contact + brand for the marketing site.
+  supportEmail: process.env.SUPPORT_EMAIL ?? "georgevogeljr10@gmail.com",
+  brandName: process.env.BRAND_NAME ?? "Call Me",
+
   // Seconds of silence to wait before ending speech capture. "auto" uses
   // Twilio's smart endpointing (ends fast on any pause — cuts people off).
   // A number (e.g. "5") waits that many seconds of silence, so a breath or a
