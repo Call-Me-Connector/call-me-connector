@@ -75,6 +75,14 @@ export async function initSchema(): Promise<void> {
     );
 
     CREATE INDEX IF NOT EXISTS refresh_tokens_user_idx ON refresh_tokens(user_id);
+
+    -- One row per placed call, for monthly fair-use metering.
+    CREATE TABLE IF NOT EXISTS call_events (
+      id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS call_events_user_month_idx ON call_events(user_id, created_at);
   `);
   console.log("[db] schema ready");
 }

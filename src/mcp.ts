@@ -4,6 +4,7 @@ import { config } from "./config.js";
 import { store, type CallRecord } from "./store.js";
 import { placeCall } from "./twilio.js";
 import { findById, isSubscribed } from "./users.js";
+import { callsThisMonth, recordCall } from "./usage.js";
 
 const DEFAULT_TIMEOUT_S = 150;
 const MAX_TIMEOUT_S = 240;
@@ -136,6 +137,23 @@ export function createMcpServer(userId: string): McpServer {
         };
       }
 
+      // Fair-use monthly cap (protects margin from heavy telephony usage).
+      const cap = user.tier === "pro" ? config.callCaps.pro : config.callCaps.basic;
+      const used = await callsThisMonth(userId);
+      if (used >= cap) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text:
+                `This account has reached its monthly fair-use limit of ${cap} calls on the ${user.tier} plan ` +
+                `(resets on the 1st). Tell the user, and suggest upgrading to Pro if they need more.`,
+            },
+          ],
+        };
+      }
+
       // Conversational (multi-turn) calls are a Pro-plan feature.
       const wantsConversation = input.conversational ?? false;
       if (wantsConversation && user.tier !== "pro") {
@@ -163,6 +181,7 @@ export function createMcpServer(userId: string): McpServer {
 
       try {
         await placeCall(rec);
+        await recordCall(userId); // count toward the monthly fair-use cap
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         store.update(rec.id, { status: "failed", error: message });

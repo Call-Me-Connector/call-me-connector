@@ -28,6 +28,7 @@ Assistant ◀──── "the user said: …" ◀──── transcript ◀─
 |--|--|--|
 | One-shot call (read update, capture one reply) | ✅ | ✅ |
 | Multi-turn **conversation** mode (`conversational: true` — it talks back and holds a full conversation until you say "done") | — | ✅ |
+| Fair-use calls / month (protects margin; configurable via `CAP_BASIC` / `CAP_PRO`) | 100 | 500 |
 | Price | **$6/mo** | **$9/mo** |
 
 No free tier. In multi-tenant mode each user's plan (from billing) sets their tier.

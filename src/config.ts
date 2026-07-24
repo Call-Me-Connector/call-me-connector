@@ -64,6 +64,12 @@ export const config = {
   get billingEnabled() {
     return this.stripe.secretKey.length > 0;
   },
+
+  // Monthly fair-use call caps per plan (protects margin from heavy usage).
+  callCaps: {
+    basic: parseInt(process.env.CAP_BASIC ?? "100", 10),
+    pro: parseInt(process.env.CAP_PRO ?? "500", 10),
+  },
   // Channel for verification codes: "sms" or "call". Voice ("call") avoids the
   // A2P 10DLC registration that SMS from a 10-digit number requires.
   verifyChannel: (process.env.VERIFY_CHANNEL ?? "sms").toLowerCase() === "call" ? "call" : "sms",
