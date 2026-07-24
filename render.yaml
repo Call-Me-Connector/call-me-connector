@@ -36,3 +36,17 @@ services:
         value: Polly.Joanna
       - key: LANGUAGE
         value: en-US
+      - key: SPEECH_TIMEOUT
+        value: "10"
+      # ---- Multi-tenant (SaaS) mode ----
+      # Setting DATABASE_URL flips the connector into multi-tenant mode: users
+      # sign up, verify their own number, and calls go to THEIR number.
+      # Paste your Render Postgres "Internal Database URL" here.
+      - key: DATABASE_URL
+        sync: false
+      # Twilio Verify service (identifier, not a secret) used to send OTP codes.
+      - key: TWILIO_VERIFY_SERVICE_SID
+        value: VA9271992ef3f0fc912cbd1ad4573bd26e
+      # Verification channel: "sms" or "call".
+      - key: VERIFY_CHANNEL
+        value: sms
