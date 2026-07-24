@@ -225,6 +225,7 @@ export function createMcpServer(userId: string): McpServer {
       annotations: {
         title: "Get the result of a phone call",
         readOnlyHint: true, // only reads a prior call's status/transcript
+        destructiveHint: false, // read-only; changes nothing
         openWorldHint: false,
       },
       description:

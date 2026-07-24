@@ -331,6 +331,17 @@ export function buildOAuthRouter(): Router {
     }
     try {
       await setPhone(flow.userId, phone);
+      // Store reviewers (allowlisted emails) skip SMS verification entirely:
+      // app-store review requires demo credentials that work without an SMS
+      // confirmation step. Their number is trusted as-is and the connection
+      // completes immediately.
+      const user = await findById(flow.userId);
+      const isReviewer =
+        user != null && config.reviewerEmails.includes(user.email.toLowerCase());
+      if (isReviewer) {
+        await markPhoneVerified(flow.userId);
+        return issueCodeAndRedirect(res, { ...flow, phone });
+      }
       await startVerification(phone);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not send a code.";
