@@ -37,28 +37,91 @@ Live URLs (custom domain — live + SSL verified):
 
 ---
 
-## 1) Claude Connectors Directory
+## 0) Launch NOW via direct link (no store, no plan upgrade) — recommended first
+The product is fully sellable today without any directory. Anyone can add the
+connector themselves and pay:
+1. Point people to **`https://getcallme.app`** (the landing page shows the URL + 3 steps).
+2. They add **`https://getcallme.app/mcp`** as a custom connector in Claude or ChatGPT,
+   sign up, and verify their phone.
+3. First `call_me` hits the paywall message, which links them to
+   `https://getcallme.app/account` to subscribe (Basic $6 / Pro $9) via Stripe (LIVE).
+4. Calls start working. Done — real revenue, no gatekeeper.
+
+The store listings below are a **discovery** channel on top of this, not a prerequisite.
+
+## 1) Claude Connectors Directory — ⛔ needs a Team/Enterprise plan
 Docs: <https://claude.com/docs/connectors/building/submission> · FAQ: <https://support.claude.com/en/articles/11596036-anthropic-connectors-directory-faq>
 
-1. First, **add it as a custom connector** to confirm it works: claude.ai → Settings → Connectors → Add custom connector → `https://getcallme.app/mcp`. Approve the OAuth consent (sign up + verify your number).
-2. Go to the **submission page** (docs link above) and submit the remote MCP URL, your privacy policy URL (`/privacy`), support contact, category, icon, and description.
-3. Provide the **reviewer demo account** credentials.
-4. Track status + reviewer feedback in the **submissions dashboard**. Reviews are manual; a missing/incomplete privacy policy is an instant reject (yours is complete).
+**Blocked on plan tier.** The submission portal lives in claude.ai **Admin settings**,
+which only exists on **Team or Enterprise** orgs (and only Owners can use it).
+George's account is **Max (individual)** — no Admin settings, so there is nowhere to
+submit. To pursue this listing you'd start a **Claude Team** org (~$30/user/mo) and
+submit as its Owner. Everything else is ready; only the plan tier blocks it.
 
-## 2) ChatGPT app store (Apps SDK)
-Docs: <https://developers.openai.com/apps-sdk/app-submission-guidelines> · Submission: <https://developers.openai.com/apps-sdk/deploy/submission>
+When/if on Team, the portal is an 11-step flow: Introduction → Connection (URL
+`https://getcallme.app/mcp`, streamable HTTP) → Tools (auto-synced) → Listing (name,
+tagline ≤55 char, description ≤2000, category, docs/privacy/support URLs, icon, slug)
+→ Use cases → Company → Authentication (OAuth + DCR) → Data handling (your own API) →
+Test & launch (reviewer creds below) → Compliance (7 attestations) → Review.
 
-1. Turn on **Developer mode** in ChatGPT and add your MCP server (`/mcp`) to test it on **web and mobile** — all tool test cases must pass on both.
-2. **Verify your domain:** OpenAI gives you a token to serve as plain text. Set two env vars in Render and redeploy — the route is already built:
-   - `OPENAI_VERIFICATION_PATH` = the path OpenAI specifies (e.g. `/.well-known/openai-domain-verification.txt`)
-   - `OPENAI_VERIFICATION_TOKEN` = the token they give you
-   Then confirm it serves at `https://getcallme.app/<that path>`.
-3. Submit through the **plugin submission portal** with MCP connectivity details, testing guidelines, directory metadata, and country availability.
+## 2) ChatGPT / OpenAI Apps SDK — ✅ open to individual developers
+Docs: <https://developers.openai.com/apps-sdk/deploy/submission>
+
+**No paid-plan gate.** You need a (free) OpenAI **Platform** account; as the org owner
+you automatically have the required **Apps Management** write permission.
+
+**Steps:**
+1. **Verify identity** in OpenAI Platform → org settings → *individual* (own name) or
+   *business* (your LLC) verification. Required for every public submission.
+2. **Test first (developer mode):** in ChatGPT settings enable developer/Apps mode, add
+   `https://getcallme.app/mcp`, and run the test cases below on web + mobile.
+3. **Domain verification:** the portal shows a token to host at
+   `https://getcallme.app/.well-known/openai-apps-challenge` returning **only** that token
+   as plain text. The route is already built — set two Render env vars and redeploy:
+   - `OPENAI_VERIFICATION_PATH` = `/.well-known/openai-apps-challenge`
+   - `OPENAI_VERIFICATION_TOKEN` = the token from the portal
+   (Ping me and I'll set these in Render the moment you have the token.)
+4. **Open the portal** → Create plugin → *With MCP* → fill listing, select verified
+   identity, enter MCP URL, **Scan Tools**, add reviewer creds, prompts, test cases,
+   countries, release notes → attestations → **Submit for Review**.
+5. After approval, **you** publish from the portal; it then appears in the Plugins
+   Directory (shared by ChatGPT + Codex).
+
+**Reviewer demo credentials (works without SMS — required by OpenAI):**
+> Email `georgevogeljr10+reviewer@gmail.com`, password `CallMe-Review-2026`.
+> On the sign-in screen tap **Create account** (or Sign in if it exists). Enter **your
+> own phone number** — no SMS code is required for this account, it's trusted instantly —
+> then ask the assistant to call you. (This allowlisted account also skips the paywall.)
+
+**Starter prompts:**
+- "When this task finishes, call me with a summary and ask what to prioritize next."
+- "I'm heading out — if you get blocked, call my phone and read me the blocker."
+- "Call me, read these three questions aloud, and capture my spoken answers."
+
+**5 positive test cases** (each: user prompt → expected):
+1. "Call me and tell me the deploy is done, then ask if I want smoke tests run." → `call_me` places a call to the reviewer's verified number; TTS reads the summary + question; returns a `call_id`.
+2. "When the report's ready, call me with a summary and take my next instruction." → `call_me` with a summary; captures the spoken reply; `get_call_result` returns the transcript.
+3. "Phone me and read these three questions, then read back what I say." → `call_me` with a questions list; captures reply.
+4. "Start the call in conversation mode so we can go back and forth." → `call_me` conversational mode (Pro); multi-turn capture until the user says done.
+5. "You called me a minute ago — fetch what I said." → `get_call_result` with the `call_id` returns status + transcript.
+
+**3 negative test cases:**
+1. "Call my coworker at (312) 555-0148 and read him this." → connector **only** rings the account's own verified number; it does not dial arbitrary third-party numbers. Expected: it calls the user's own number (or explains it can only call the verified account number).
+2. `call_me` from an account with no verified phone or no subscription → safe error telling the user to verify their number / subscribe at `/account`; **no call is placed**.
+3. "Call this premium number 50 times in a row." → fair-use monthly cap (Basic 100 / Pro 500) blocks abuse; there is no bulk/again loop and no delete tool. Expected: declines past the cap.
+
+**Release notes (initial submission):** Call Me is an MCP connector that phones the
+user's own verified number with a spoken update (TTS) and captures their spoken reply
+(STT) to keep a task moving. OAuth 2.1 + PKCE with dynamic client registration. Two
+tools: `call_me` (write — places a call) and `get_call_result` (read). No custom UI, so
+no CSP needed. Reviewer demo account bypasses SMS verification and the paywall so the
+core flow is testable without a code.
 
 ---
 
 ## Notes / nice-to-haves before going big
 - [x] **Custom domain** — `getcallme.app` is live with SSL and is now `PUBLIC_URL`.
-- **Always-on hosting:** upgrade the Render web service off the free (spins-down) plan so reviewer/customer calls aren't delayed ~50s on cold start.
+- [x] **Reviewer flow** — `REVIEWER_EMAILS` allowlist skips both the paywall **and** SMS verification, so reviewers test with zero friction.
+- **Always-on hosting:** upgrade the Render web service off the free (spins-down) plan so reviewer/customer calls aren't delayed ~50s on cold start. Worth doing before either store review.
 - [x] **Merge `multi-tenant` → `main`** — done; `main` is canonical.
 - Both stores scrutinize a tool that **places phone calls** — be ready to explain that it only ever calls the user's own verified number and is subscription-gated (both true).
