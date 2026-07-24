@@ -129,8 +129,10 @@ export function createMcpServer(userId: string): McpServer {
         };
       }
 
-      // Paywall — only enforced once Stripe billing is configured.
-      if (config.billingEnabled && !isSubscribed(user)) {
+      // Paywall — only enforced once Stripe billing is configured. Reviewer
+      // allowlist emails skip it so store reviewers can test calls.
+      const isReviewer = config.reviewerEmails.includes(user.email.toLowerCase());
+      if (config.billingEnabled && !isReviewer && !isSubscribed(user)) {
         return {
           isError: true,
           content: [

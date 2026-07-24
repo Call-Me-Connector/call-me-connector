@@ -61,3 +61,6 @@ services:
         sync: false
       - key: STRIPE_PRICE_PRO
         sync: false
+      # Comma-separated emails that bypass the paywall (store reviewers).
+      - key: REVIEWER_EMAILS
+        sync: false

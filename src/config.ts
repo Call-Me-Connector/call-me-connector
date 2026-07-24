@@ -70,6 +70,13 @@ export const config = {
     basic: parseInt(process.env.CAP_BASIC ?? "100", 10),
     pro: parseInt(process.env.CAP_PRO ?? "500", 10),
   },
+
+  // Emails that skip the subscription paywall (for store reviewers to test).
+  // Comma-separated. Fair-use caps still apply. e.g. "review@anthropic.com,review@openai.com"
+  reviewerEmails: (process.env.REVIEWER_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
   // Channel for verification codes: "sms" or "call". Voice ("call") avoids the
   // A2P 10DLC registration that SMS from a 10-digit number requires.
   verifyChannel: (process.env.VERIFY_CHANNEL ?? "sms").toLowerCase() === "call" ? "call" : "sms",
