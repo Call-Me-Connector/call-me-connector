@@ -81,6 +81,11 @@ export const config = {
   supportEmail: process.env.SUPPORT_EMAIL ?? "georgevogeljr10@gmail.com",
   brandName: process.env.BRAND_NAME ?? "Call Me",
 
+  // ChatGPT/OpenAI domain verification: at app submission OpenAI gives you a
+  // token to serve as plain text at a path. Set both and it's served.
+  openaiVerificationPath: process.env.OPENAI_VERIFICATION_PATH ?? "",
+  openaiVerificationToken: process.env.OPENAI_VERIFICATION_TOKEN ?? "",
+
   // Seconds of silence to wait before ending speech capture. "auto" uses
   // Twilio's smart endpointing (ends fast on any pause — cuts people off).
   // A number (e.g. "5") waits that many seconds of silence, so a breath or a

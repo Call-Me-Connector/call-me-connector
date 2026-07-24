@@ -1,46 +1,63 @@
-# Store submission checklist
+# Store submission guide
 
-The code in this repo is a working MCP connector. Both stores accept the same
-remote MCP server; the gap between "works privately" and "listed in the store" is
-mostly **auth + policy paperwork**, not code.
+Your connector is a live, multi-tenant, paid SaaS. This is the checklist +
+step-by-step for listing it in the **Claude Connectors Directory** and the
+**ChatGPT app store**. The final submit/review happens on Anthropic's and
+OpenAI's platforms — this doc gets you fully ready and tells you exactly what to
+click.
 
-## Shared requirements (both stores)
+Live URLs:
+- Site / privacy / terms: `https://call-me-connector.onrender.com` · `/privacy` · `/terms`
+- Connector (MCP): `https://call-me-connector.onrender.com/mcp`
 
-- [ ] Deployed at a stable public HTTPS URL, `/mcp` reachable.
-- [x] **OAuth 2.1** instead of a static bearer token. ✅ **Built in** — set
-      `OAUTH_SIGNING_SECRET` + `OWNER_ACCESS_CODE` and it turns on (discovery,
-      dynamic client registration, PKCE authorize + consent screen, token +
-      refresh, protected-resource metadata). See README §4b. For a multi-user
-      product you may prefer to front it with a hosted IdP (Auth0, WorkOS,
-      Clerk, Stytch) and per-user accounts instead of a single owner code.
-- [ ] Privacy policy URL. Be explicit that the connector places phone calls to a
-      user-provided number and processes the spoken reply (STT) via Twilio.
-- [ ] Support contact.
-- [ ] Clear tool descriptions (already written) and an icon/name.
-- [ ] Rate limiting + abuse protection, since a call tool has real-world cost.
-      Keep `ALLOW_NUMBER_OVERRIDE=false`, or gate overrides behind per-user
-      verified numbers.
+## ✅ Readiness checklist (all done in code)
+- [x] Remote MCP server over **HTTPS**
+- [x] **OAuth 2.1 + PKCE** with Dynamic Client Registration + discovery metadata
+- [x] **Privacy policy** and **Terms** at public URLs
+- [x] **Tool annotations** (`readOnlyHint` / `destructiveHint` etc.) — required by Claude
+- [x] Verb-based, human-readable tool names (`call_me`, `get_call_result`) with clear descriptions
+- [x] You **own** the domain and service (no wrapping someone else's API)
+- [x] Support contact (`SUPPORT_EMAIL`)
+- [x] App **favicon/icon** at `/favicon.svg`
 
-## Claude connector directory
+## Before you submit (both stores)
+1. **Create a reviewer demo account** on your own site so reviewers can try it:
+   a verified test number they can be called on, and (since calls are gated) a
+   subscription — or temporarily relax the paywall for review.
+2. **Prepare listing assets:** a 512×512 PNG icon (the `/favicon.svg` gradient +
+   📞 is a starting point), 2–3 screenshots, and the copy below.
 
-- Anthropic reviews submissions; you provide the remote MCP URL, OAuth details,
-  logo, description, and privacy policy.
-- Test first as a **custom connector** (README §5) to confirm the tools work in
-  Claude before submitting for the directory.
-- Expect review of what the tools *do* — a tool that dials a phone will get
-  scrutiny on how the destination number is authorized and how you prevent abuse.
+### Ready-to-paste listing copy
+- **Name:** Call Me
+- **Short description:** Your AI assistant calls your phone when a task is done or it's stuck — hear the update, say what's next, keep moving.
+- **Long description:** Call Me lets Claude/ChatGPT phone your verified number with spoken updates and take your voice instructions back. Built for people on the go — founders, execs, consultants, sales — who need work to keep moving when they're away from the keyboard. Basic $6/mo, Pro $9/mo (full back-and-forth conversation).
+- **Category:** Productivity / Communication
+- **Tools:** `call_me` (calls you with an update + captures your reply), `get_call_result` (fetch a call's transcript).
 
-## ChatGPT (OpenAI) app / connector
+---
 
-- Built on the **Apps SDK**, which is MCP under the hood — this server is
-  compatible as-is.
-- Test first via **Settings → Connectors → Advanced → custom MCP connector**.
-- For a public store listing, follow OpenAI's app submission flow: OAuth,
-  metadata, privacy policy, and their content/safety review.
+## 1) Claude Connectors Directory
+Docs: <https://claude.com/docs/connectors/building/submission> · FAQ: <https://support.claude.com/en/articles/11596036-anthropic-connectors-directory-faq>
 
-## Practical order of operations
+1. First, **add it as a custom connector** to confirm it works: claude.ai → Settings → Connectors → Add custom connector → `https://call-me-connector.onrender.com/mcp`. Approve the OAuth consent (sign up + verify your number).
+2. Go to the **submission page** (docs link above) and submit the remote MCP URL, your privacy policy URL (`/privacy`), support contact, category, icon, and description.
+3. Provide the **reviewer demo account** credentials.
+4. Track status + reviewer feedback in the **submissions dashboard**. Reviews are manual; a missing/incomplete privacy policy is an instant reject (yours is complete).
 
-1. Ship it and use it privately on both platforms with `CONNECTOR_TOKEN`.
-2. Add OAuth.
-3. Add privacy policy + support page + per-user number verification.
-4. Submit to each store.
+## 2) ChatGPT app store (Apps SDK)
+Docs: <https://developers.openai.com/apps-sdk/app-submission-guidelines> · Submission: <https://developers.openai.com/apps-sdk/deploy/submission>
+
+1. Turn on **Developer mode** in ChatGPT and add your MCP server (`/mcp`) to test it on **web and mobile** — all tool test cases must pass on both.
+2. **Verify your domain:** OpenAI gives you a token to serve as plain text. Set two env vars in Render and redeploy — the route is already built:
+   - `OPENAI_VERIFICATION_PATH` = the path OpenAI specifies (e.g. `/.well-known/openai-domain-verification.txt`)
+   - `OPENAI_VERIFICATION_TOKEN` = the token they give you
+   Then confirm it serves at `https://call-me-connector.onrender.com/<that path>`.
+3. Submit through the **plugin submission portal** with MCP connectivity details, testing guidelines, directory metadata, and country availability.
+
+---
+
+## Notes / nice-to-haves before going big
+- **Custom domain** (e.g. a `.com` you own) reads better on listings + card statements than `onrender.com`.
+- **Always-on hosting:** upgrade the Render web service off the free (spins-down) plan so reviewer/customer calls aren't delayed ~50s on cold start.
+- **Merge `multi-tenant` → `main`** so the deployed product is the canonical branch.
+- Both stores scrutinize a tool that **places phone calls** — be ready to explain that it only ever calls the user's own verified number and is subscription-gated (both true).

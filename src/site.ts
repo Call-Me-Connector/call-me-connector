@@ -15,6 +15,7 @@ const HEAD = (title: string) => `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
 <meta name="description" content="${BRAND} phones you when your AI assistant finishes a task or gets stuck — hear the update, say what's next, keep moving. Built for people on the go.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
  :root{
    --indigo:#4f46e5; --indigo2:#7c3aed; --ink:#0f1222; --body:#2b2f45; --muted:#6b7192;
@@ -282,5 +283,21 @@ export function buildSiteRouter(): Router {
   router.get("/healthz", (_req, res) =>
     res.json({ name: "call-me-connector", status: "ok", mcp_endpoint: "/mcp", mode: config.multiTenant ? "multi-tenant" : "single-user" })
   );
+
+  // Favicon: the same phone emoji the site uses, as an inline SVG.
+  router.get("/favicon.svg", (_req, res) => {
+    res.type("image/svg+xml").send(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f46e5"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#g)"/><text x="32" y="44" font-size="34" text-anchor="middle">📞</text></svg>`
+    );
+  });
+
+  // ChatGPT/OpenAI domain-verification token, served as plain text at the path
+  // OpenAI specifies (set OPENAI_VERIFICATION_PATH + OPENAI_VERIFICATION_TOKEN).
+  if (config.openaiVerificationPath && config.openaiVerificationToken) {
+    router.get(config.openaiVerificationPath, (_req, res) =>
+      res.type("text/plain").send(config.openaiVerificationToken)
+    );
+  }
+
   return router;
 }

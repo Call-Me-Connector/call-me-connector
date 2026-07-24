@@ -68,6 +68,13 @@ export function createMcpServer(userId: string): McpServer {
     "call_me",
     {
       title: "Call me with an update",
+      annotations: {
+        title: "Call me with an update",
+        readOnlyHint: false, // it places a phone call — a real-world side effect
+        destructiveHint: false, // doesn't delete or overwrite anything
+        idempotentHint: false, // each call is a distinct phone call
+        openWorldHint: true, // interacts with the external world (telephony)
+      },
       description:
         "Phone the signed-in user to tell them what you did (or where you got stuck) and collect " +
         "their spoken instructions to get back on track. Use this when a task is DONE, when you are " +
@@ -213,6 +220,11 @@ export function createMcpServer(userId: string): McpServer {
     "get_call_result",
     {
       title: "Get the result of a phone call",
+      annotations: {
+        title: "Get the result of a phone call",
+        readOnlyHint: true, // only reads a prior call's status/transcript
+        openWorldHint: false,
+      },
       description:
         "Fetch the current status and captured spoken reply for a call previously started with " +
         "call_me. Use this if call_me returned a pending status or if you used wait_for_reply=false.",
