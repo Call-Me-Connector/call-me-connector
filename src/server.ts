@@ -6,6 +6,7 @@ import { store } from "./store.js";
 import { createMcpServer } from "./mcp.js";
 import { buildOutboundTwiml, buildCollectTwiml, buildRepromptTwiml } from "./twiml.js";
 import { buildOAuthRouter, verifyAccessToken } from "./oauth.js";
+import { initSchema } from "./db.js";
 import type { CallStatus } from "./store.js";
 
 const app = express();
@@ -25,7 +26,7 @@ app.get("/", (_req, res) => {
     name: "call-me-connector",
     status: "ok",
     mcp_endpoint: "/mcp",
-    number_locked: !config.allowNumberOverride,
+    mode: config.multiTenant ? "multi-tenant" : "single-user",
   });
 });
 
@@ -33,39 +34,33 @@ app.get("/", (_req, res) => {
 // MCP endpoint (Streamable HTTP, stateless) — this is the connector URL you
 // register with Claude / ChatGPT.
 // ---------------------------------------------------------------------------
-async function checkConnectorAuth(req: Request, res: Response): Promise<boolean> {
+/** Returns the authenticated user's id, or null after writing a 401. */
+async function resolveUser(req: Request, res: Response): Promise<string | null> {
   const header = req.header("authorization") ?? "";
   const bearer = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
 
-  // 1. Legacy static token (personal-use convenience).
-  if (config.connectorToken) {
-    const alt = req.header("x-connector-token") ?? "";
-    if (bearer === config.connectorToken || alt === config.connectorToken) return true;
+  if (config.oauth.enabled && bearer) {
+    const userId = await verifyAccessToken(bearer);
+    if (userId) return userId;
   }
-  // 2. OAuth 2.1 access token.
-  if (config.oauth.enabled && bearer && (await verifyAccessToken(bearer))) return true;
-  // 3. No auth configured at all → open (dev only).
-  if (!config.connectorToken && !config.oauth.enabled) return true;
 
-  // Point clients at the resource metadata so they can start the OAuth flow.
-  if (config.oauth.enabled) {
-    res.setHeader(
-      "WWW-Authenticate",
-      `Bearer resource_metadata="${config.publicUrl}/.well-known/oauth-protected-resource"`
-    );
-  }
+  res.setHeader(
+    "WWW-Authenticate",
+    `Bearer resource_metadata="${config.publicUrl}/.well-known/oauth-protected-resource"`
+  );
   res.status(401).json({
     jsonrpc: "2.0",
     error: { code: -32001, message: "Unauthorized: missing or invalid credentials." },
     id: null,
   });
-  return false;
+  return null;
 }
 
 app.post("/mcp", express.json({ limit: "1mb" }), async (req, res) => {
-  if (!(await checkConnectorAuth(req, res))) return;
-  // Stateless: a fresh server + transport per request, torn down when it closes.
-  const server = createMcpServer();
+  const userId = await resolveUser(req, res);
+  if (!userId) return;
+  // Stateless: a fresh server + transport per request, bound to this user.
+  const server = createMcpServer(userId);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on("close", () => {
     transport.close();
@@ -210,18 +205,30 @@ app.post("/voice/status", twilioBody, (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-app.listen(config.port, () => {
-  console.log(`call-me-connector listening on :${config.port}`);
-  console.log(`  MCP endpoint:   POST /mcp`);
-  console.log(`  Public URL:     ${config.publicUrl || "(PUBLIC_URL not set)"}`);
-  console.log(`  Plan tier:      ${config.tier.toUpperCase()}${config.tier === "pro" ? " (conversation mode enabled)" : " (one-shot only)"}`);
-  console.log(`  Number lock:    ${config.allowNumberOverride ? "OFF (override allowed)" : "ON (owner only)"}`);
-  console.log(`  Static token:   ${config.connectorToken ? "ON" : "OFF"}`);
-  console.log(`  OAuth 2.1:      ${config.oauth.enabled ? "ON" : "OFF"}`);
-  if (config.oauth.enabled && (!config.oauth.signingSecret || !config.oauth.ownerAccessCode)) {
-    console.warn("  ⚠  OAuth is enabled but OAUTH_SIGNING_SECRET or OWNER_ACCESS_CODE is missing — auth will fail.");
+async function start(): Promise<void> {
+  if (config.multiTenant) {
+    try {
+      await initSchema();
+    } catch (err) {
+      console.error("[db] schema init failed — check DATABASE_URL:", err);
+    }
   }
-  if (!config.publicUrl) {
-    console.warn("  ⚠  PUBLIC_URL is empty — Twilio callbacks will fail until it is set.");
-  }
-});
+  app.listen(config.port, () => {
+    console.log(`call-me-connector listening on :${config.port}`);
+    console.log(`  MCP endpoint:   POST /mcp`);
+    console.log(`  Public URL:     ${config.publicUrl || "(PUBLIC_URL not set)"}`);
+    console.log(`  Mode:           ${config.multiTenant ? "MULTI-TENANT (per-user accounts)" : "single-user"}`);
+    console.log(`  OAuth 2.1:      ${config.oauth.enabled ? "ON" : "OFF"}`);
+    if (config.multiTenant && !config.verifyServiceSid) {
+      console.warn("  ⚠  TWILIO_VERIFY_SERVICE_SID is not set — phone verification will fail.");
+    }
+    if (config.oauth.enabled && !config.oauth.signingSecret) {
+      console.warn("  ⚠  OAUTH_SIGNING_SECRET is missing — auth will fail.");
+    }
+    if (!config.publicUrl) {
+      console.warn("  ⚠  PUBLIC_URL is empty — Twilio callbacks will fail until it is set.");
+    }
+  });
+}
+
+void start();

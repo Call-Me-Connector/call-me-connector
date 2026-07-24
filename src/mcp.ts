@@ -1,29 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { config } from "./config.js";
 import { store, type CallRecord } from "./store.js";
 import { placeCall } from "./twilio.js";
+import { findById } from "./users.js";
 
 const DEFAULT_TIMEOUT_S = 150;
 const MAX_TIMEOUT_S = 240;
-
-/** E.164 sanity check: a plus sign followed by up to 15 digits. */
-const E164 = /^\+[1-9]\d{6,14}$/;
-
-/**
- * Decide which number to dial. By default the connector is locked to the single
- * number in USER_PHONE_NUMBER, ignoring any `to` the model supplies — this is
- * the guard that keeps the connector from being turned into a robo-dialer.
- */
-function resolveTarget(to?: string): { number: string } | { error: string } {
-  if (!to || !config.allowNumberOverride) {
-    return { number: config.userPhoneNumber };
-  }
-  if (!E164.test(to)) {
-    return { error: `"${to}" is not a valid E.164 phone number (e.g. +15551234567).` };
-  }
-  return { number: to };
-}
 
 function describeResult(rec: CallRecord): string {
   if (rec.transcript) {
@@ -64,37 +46,39 @@ function structured(rec: CallRecord) {
 }
 
 /**
- * Build a fresh McpServer with the connector's tools registered. In the
- * stateless Streamable-HTTP setup we create one of these per request.
+ * Build a fresh McpServer bound to ONE authenticated user. In the stateless
+ * Streamable-HTTP setup we create one of these per request, stamped with the
+ * user id from the verified access token — so call_me only ever rings that
+ * user's own verified number.
  */
-export function createMcpServer(): McpServer {
+export function createMcpServer(userId: string): McpServer {
   const server = new McpServer(
     { name: "call-me-connector", version: "1.0.0" },
     {
       instructions:
-        "Use call_me to phone the user's cell phone when a task is finished or blocked. " +
-        "It speaks your summary, next steps, and questions aloud, then returns what the user " +
-        "says back so you can act on it.",
+        "Use call_me to phone the user when a task is finished or you're blocked. Report what " +
+        "you did (or where you got stuck) in `summary`; it's spoken aloud, then the user's spoken " +
+        "reply comes back so you can act on it. It always calls the signed-in user's own verified number.",
     }
   );
 
   server.registerTool(
     "call_me",
     {
-      title: "Call my phone with an update",
+      title: "Call me with an update",
       description:
-        "Phone the user's personal cell phone to deliver a spoken status update and collect " +
-        "their spoken instructions. Use this when a task is DONE, when you are BLOCKED and need " +
-        "a decision, or whenever the user asked to be called. Provide a concise plain-language " +
-        "`summary` of what happened, an optional `next_steps` description, and any `questions` " +
-        "you need answered. By default this waits for the user to answer and returns exactly " +
-        "what they said (transcribed) so you can carry out their instructions. Keep the summary " +
-        "and questions short and conversational — they are read aloud over the phone.",
+        "Phone the signed-in user to tell them what you did (or where you got stuck) and collect " +
+        "their spoken instructions to get back on track. Use this when a task is DONE, when you are " +
+        "BLOCKED and need a decision, or whenever they asked to be called. Put a concise, " +
+        "conversational recap in `summary` (e.g. \"I finished the report but got stuck on the budget " +
+        "tab\"), plus optional `next_steps` and `questions`. By default it waits and returns exactly " +
+        "what the user says so you can carry out their instructions. It always calls their own " +
+        "verified number — you cannot specify a different one.",
       inputSchema: {
         summary: z
           .string()
           .min(1)
-          .describe("Plain-language summary of what was accomplished or why you're calling. Read aloud."),
+          .describe("What you accomplished or where you got stuck / why you're calling. Read aloud."),
         questions: z
           .array(z.string())
           .optional()
@@ -103,16 +87,10 @@ export function createMcpServer(): McpServer {
           .string()
           .optional()
           .describe("What you plan to do next, read aloud before the questions."),
-        to: z
-          .string()
-          .optional()
-          .describe(
-            "Override phone number in E.164 format. Ignored unless the server has ALLOW_NUMBER_OVERRIDE enabled; otherwise the call always goes to the owner's configured number."
-          ),
         conversational: z
           .boolean()
           .optional()
-          .describe("Multi-turn mode: keep listening across several replies until the user says \"done\", capturing everything they say. Requires the Pro plan; on the Basic plan this is rejected."),
+          .describe("Multi-turn mode: keep listening across several replies until the user says \"done\". Requires the Pro plan; rejected on Basic."),
         wait_for_reply: z
           .boolean()
           .optional()
@@ -124,33 +102,46 @@ export function createMcpServer(): McpServer {
       },
     },
     async (input) => {
-      const target = resolveTarget(input.to);
-      if ("error" in target) {
-        return { isError: true, content: [{ type: "text", text: target.error }] };
+      const user = await findById(userId);
+      if (!user) {
+        return { isError: true, content: [{ type: "text", text: "Your account could not be found. Please reconnect the connector." }] };
       }
-
-      // Conversational (multi-turn) calls are a Pro-plan feature.
-      const wantsConversation = input.conversational ?? false;
-      if (wantsConversation && config.tier !== "pro") {
+      if (!user.phone_verified || !user.phone_e164) {
         return {
           isError: true,
           content: [
             {
               type: "text",
               text:
-                "Multi-turn conversation mode requires the Pro plan. This connector is on the " +
-                "Basic plan, which supports one-shot calls only. Retry without `conversational`, " +
-                "or upgrade to Pro to enable back-and-forth calls.",
+                "No verified phone number is on file for this account, so there's nothing to call. " +
+                "Ask the user to reconnect the connector and complete phone verification.",
+            },
+          ],
+        };
+      }
+
+      // Conversational (multi-turn) calls are a Pro-plan feature.
+      const wantsConversation = input.conversational ?? false;
+      if (wantsConversation && user.tier !== "pro") {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text:
+                "Multi-turn conversation mode requires the Pro plan. This account is on Basic " +
+                "(one-shot calls only). Retry without `conversational`, or upgrade to Pro.",
             },
           ],
         };
       }
 
       const rec = store.create({
+        userId,
         summary: input.summary,
         questions: input.questions ?? [],
         nextSteps: input.next_steps,
-        to: target.number,
+        to: user.phone_e164,
         conversational: wantsConversation,
       });
 
@@ -169,20 +160,13 @@ export function createMcpServer(): McpServer {
       const wait = input.wait_for_reply ?? true;
       if (!wait) {
         return {
-          content: [
-            {
-              type: "text",
-              text: `Calling ${target.number} now. Use get_call_result with call_id ${rec.id} to fetch the reply.`,
-            },
-          ],
+          content: [{ type: "text", text: `Calling you now. Use get_call_result with call_id ${rec.id} to fetch the reply.` }],
           structuredContent: structured(rec),
         };
       }
 
-      const timeoutMs =
-        Math.min(Math.max(input.timeout_seconds ?? DEFAULT_TIMEOUT_S, 15), MAX_TIMEOUT_S) * 1000;
+      const timeoutMs = Math.min(Math.max(input.timeout_seconds ?? DEFAULT_TIMEOUT_S, 15), MAX_TIMEOUT_S) * 1000;
       const finished = (await store.waitForReply(rec.id, timeoutMs)) ?? rec;
-
       return {
         content: [{ type: "text", text: describeResult(finished) }],
         structuredContent: structured(finished),
@@ -196,23 +180,18 @@ export function createMcpServer(): McpServer {
       title: "Get the result of a phone call",
       description:
         "Fetch the current status and captured spoken reply for a call previously started with " +
-        "call_me. Use this if call_me returned a pending status (the call outlived the request " +
-        "window) or if you placed the call with wait_for_reply=false.",
+        "call_me. Use this if call_me returned a pending status or if you used wait_for_reply=false.",
       inputSchema: {
         call_id: z.string().describe("The call_id returned by call_me."),
       },
     },
     async ({ call_id }) => {
       const rec = store.get(call_id);
-      if (!rec) {
+      // Ownership check: a user can only read their own calls.
+      if (!rec || rec.userId !== userId) {
         return {
           isError: true,
-          content: [
-            {
-              type: "text",
-              text: `No call found with call_id ${call_id}. It may have expired (records are kept for one hour).`,
-            },
-          ],
+          content: [{ type: "text", text: `No call found with call_id ${call_id}. It may have expired (records are kept for one hour).` }],
         };
       }
       return {

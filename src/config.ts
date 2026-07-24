@@ -3,7 +3,12 @@ function isTrue(v: string | undefined, def: boolean): boolean {
   return /^(1|true|yes|on)$/i.test(v);
 }
 
-const oauthConfigured = !!(process.env.OAUTH_SIGNING_SECRET && process.env.OWNER_ACCESS_CODE);
+const multiTenant = (process.env.DATABASE_URL ?? "").length > 0;
+// Single-user OAuth needs an owner code; multi-tenant just needs a signing secret
+// (each user logs in with their own account instead of a shared code).
+const oauthConfigured = multiTenant
+  ? !!process.env.OAUTH_SIGNING_SECRET
+  : !!(process.env.OAUTH_SIGNING_SECRET && process.env.OWNER_ACCESS_CODE);
 const tier = (process.env.TIER ?? "basic").toLowerCase() === "pro" ? "pro" : "basic";
 
 export const config = {
@@ -43,9 +48,7 @@ export const config = {
   // verify their own phone number, and calls go to THEIR number (USER_PHONE_NUMBER
   // is ignored). Without it, the connector stays in single-user mode.
   databaseUrl: process.env.DATABASE_URL ?? "",
-  get multiTenant() {
-    return this.databaseUrl.length > 0;
-  },
+  multiTenant,
   // Twilio Verify service SID, used to send/check phone verification codes.
   verifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID ?? "",
   // Channel for verification codes: "sms" or "call". Voice ("call") avoids the

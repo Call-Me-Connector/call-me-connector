@@ -12,6 +12,8 @@ export type CallStatus =
 
 export interface CallRecord {
   id: string;
+  /** The user who initiated this call (multi-tenant ownership). */
+  userId: string;
   to: string;
   createdAt: number;
   status: CallStatus;
@@ -49,6 +51,7 @@ class CallStore {
   private calls = new Map<string, CallRecord>();
 
   create(input: {
+    userId: string;
     summary: string;
     questions: string[];
     nextSteps?: string;
@@ -57,6 +60,7 @@ class CallStore {
   }): CallRecord {
     const rec: CallRecord = {
       id: randomUUID(),
+      userId: input.userId,
       to: input.to,
       createdAt: Date.now(),
       status: "queued",
