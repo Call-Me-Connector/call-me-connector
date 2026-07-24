@@ -50,3 +50,14 @@ services:
       # Verification channel: "sms" or "call".
       - key: VERIFY_CHANNEL
         value: sms
+      # ---- Stripe billing ----
+      # Setting STRIPE_SECRET_KEY turns on the paywall (calls require a
+      # subscription). Leave blank until Stripe is set up.
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_BASIC
+        sync: false
+      - key: STRIPE_PRICE_PRO
+        sync: false

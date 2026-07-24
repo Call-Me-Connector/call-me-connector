@@ -6,6 +6,8 @@ import { query } from "./db.js";
  * each user's calls go to THEIR verified number.
  */
 
+export type SubscriptionStatus = "none" | "active" | "trialing" | "past_due" | "canceled";
+
 export interface User {
   id: string;
   email: string;
@@ -13,7 +15,14 @@ export interface User {
   phone_verified: boolean;
   tier: "basic" | "pro";
   stripe_customer_id: string | null;
+  subscription_status: SubscriptionStatus;
+  subscription_id: string | null;
   created_at: Date;
+}
+
+/** True when the user is entitled to place calls. */
+export function isSubscribed(u: User): boolean {
+  return u.subscription_status === "active" || u.subscription_status === "trialing";
 }
 
 interface UserRow extends User {
@@ -21,7 +30,7 @@ interface UserRow extends User {
 }
 
 const PUBLIC_COLUMNS =
-  "id, email, phone_e164, phone_verified, tier, stripe_customer_id, created_at";
+  "id, email, phone_e164, phone_verified, tier, stripe_customer_id, subscription_status, subscription_id, created_at";
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -95,4 +104,29 @@ export async function markPhoneVerified(userId: string): Promise<void> {
 
 export async function setTier(userId: string, tier: "basic" | "pro"): Promise<void> {
   await query(`UPDATE users SET tier = $2 WHERE id = $1`, [userId, tier]);
+}
+
+export async function setStripeCustomerId(userId: string, customerId: string): Promise<void> {
+  await query(`UPDATE users SET stripe_customer_id = $2 WHERE id = $1`, [userId, customerId]);
+}
+
+export async function findByStripeCustomerId(customerId: string): Promise<User | null> {
+  const { rows } = await query<User>(
+    `SELECT ${PUBLIC_COLUMNS} FROM users WHERE stripe_customer_id = $1`,
+    [customerId]
+  );
+  return rows[0] ?? null;
+}
+
+/** Update subscription state from a Stripe webhook. */
+export async function setSubscription(
+  userId: string,
+  status: SubscriptionStatus,
+  tier: "basic" | "pro",
+  subscriptionId: string | null
+): Promise<void> {
+  await query(
+    `UPDATE users SET subscription_status = $2, tier = $3, subscription_id = $4 WHERE id = $1`,
+    [userId, status, tier, subscriptionId]
+  );
 }

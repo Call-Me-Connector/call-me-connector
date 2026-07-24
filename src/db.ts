@@ -50,8 +50,14 @@ export async function initSchema(): Promise<void> {
       phone_verified boolean NOT NULL DEFAULT false,
       tier          text NOT NULL DEFAULT 'basic',
       stripe_customer_id text,
+      subscription_status text NOT NULL DEFAULT 'none',
+      subscription_id text,
       created_at    timestamptz NOT NULL DEFAULT now()
     );
+
+    -- Add subscription columns to pre-existing installs (idempotent).
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status text NOT NULL DEFAULT 'none';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_id text;
 
     CREATE TABLE IF NOT EXISTS oauth_clients (
       client_id     text PRIMARY KEY,

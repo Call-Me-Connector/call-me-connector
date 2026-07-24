@@ -1,8 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { config } from "./config.js";
 import { store, type CallRecord } from "./store.js";
 import { placeCall } from "./twilio.js";
-import { findById } from "./users.js";
+import { findById, isSubscribed } from "./users.js";
 
 const DEFAULT_TIMEOUT_S = 150;
 const MAX_TIMEOUT_S = 240;
@@ -115,6 +116,21 @@ export function createMcpServer(userId: string): McpServer {
               text:
                 "No verified phone number is on file for this account, so there's nothing to call. " +
                 "Ask the user to reconnect the connector and complete phone verification.",
+            },
+          ],
+        };
+      }
+
+      // Paywall — only enforced once Stripe billing is configured.
+      if (config.billingEnabled && !isSubscribed(user)) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text:
+                "This account doesn't have an active subscription, so calls are paused. " +
+                `Ask the user to subscribe (Basic $6/mo or Pro $9/mo) at ${config.publicUrl}/account to start receiving calls.`,
             },
           ],
         };

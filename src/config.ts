@@ -51,6 +51,19 @@ export const config = {
   multiTenant,
   // Twilio Verify service SID, used to send/check phone verification codes.
   verifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID ?? "",
+
+  // ---- Stripe billing ----
+  // Billing only activates when STRIPE_SECRET_KEY is set. Until then every
+  // verified user can call (no paywall), so nothing breaks before setup.
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY ?? "",
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+    priceBasic: process.env.STRIPE_PRICE_BASIC ?? "", // price_… for the $6/mo plan
+    pricePro: process.env.STRIPE_PRICE_PRO ?? "", // price_… for the $9/mo plan
+  },
+  get billingEnabled() {
+    return this.stripe.secretKey.length > 0;
+  },
   // Channel for verification codes: "sms" or "call". Voice ("call") avoids the
   // A2P 10DLC registration that SMS from a 10-digit number requires.
   verifyChannel: (process.env.VERIFY_CHANNEL ?? "sms").toLowerCase() === "call" ? "call" : "sms",

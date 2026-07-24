@@ -6,16 +6,36 @@ import { store } from "./store.js";
 import { createMcpServer } from "./mcp.js";
 import { buildOutboundTwiml, buildCollectTwiml, buildRepromptTwiml } from "./twiml.js";
 import { buildOAuthRouter, verifyAccessToken } from "./oauth.js";
+import { buildAccountRouter } from "./account.js";
+import { handleWebhook } from "./billing.js";
 import { initSchema } from "./db.js";
 import type { CallStatus } from "./store.js";
 
 const app = express();
 app.disable("x-powered-by");
 
+// Stripe webhook MUST see the raw body for signature verification, so it's
+// registered before any JSON body parsing.
+app.post("/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  const sig = req.header("stripe-signature") ?? "";
+  try {
+    await handleWebhook(req.body as Buffer, sig);
+    res.json({ received: true });
+  } catch (err) {
+    console.error("[stripe] webhook error:", err);
+    res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : "invalid"}`);
+  }
+});
+
 // OAuth 2.1 endpoints (discovery, registration, authorize, token). Mounted only
 // when configured, so a private static-token setup stays simple.
 if (config.oauth.enabled) {
   app.use(buildOAuthRouter());
+}
+
+// Customer account page (sign in, subscribe, manage billing) in multi-tenant mode.
+if (config.multiTenant) {
+  app.use(buildAccountRouter());
 }
 
 // ---------------------------------------------------------------------------
@@ -219,6 +239,7 @@ async function start(): Promise<void> {
     console.log(`  Public URL:     ${config.publicUrl || "(PUBLIC_URL not set)"}`);
     console.log(`  Mode:           ${config.multiTenant ? "MULTI-TENANT (per-user accounts)" : "single-user"}`);
     console.log(`  OAuth 2.1:      ${config.oauth.enabled ? "ON" : "OFF"}`);
+    console.log(`  Billing:        ${config.billingEnabled ? "ON (Stripe — calls require a subscription)" : "OFF (no paywall yet)"}`);
     if (config.multiTenant && !config.verifyServiceSid) {
       console.warn("  ⚠  TWILIO_VERIFY_SERVICE_SID is not set — phone verification will fail.");
     }
