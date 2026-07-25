@@ -129,6 +129,53 @@ const FOOTER = `<footer><div class="wrap">
   <div>© ${BRAND}</div>
 </div></footer></body></html>`;
 
+// Shared install block (copy-URL + Claude/ChatGPT cards) used by both the
+// landing page and the focused /connect page, so they never drift apart.
+const INSTALL_BODY = `
+      <div class="copybox">
+        <code id="mcpurl">${MCP}</code>
+        <button class="btn btn-primary copybtn" onclick="copyMcp(this)">Copy URL</button>
+      </div>
+      <p class="center" style="color:var(--muted);font-size:.9rem;margin-top:.6rem">Step 1 — copy this. Then paste it into Claude or ChatGPT below.</p>
+
+      <div class="install-grid">
+        <div class="card install-card">
+          <h3><span class="badge">CLAUDE</span> Paste it in</h3>
+          <ol>
+            <li>Open <strong>Settings → Connectors</strong></li>
+            <li>Click <strong>Add custom connector</strong></li>
+            <li><strong>Paste the URL</strong> above and click <strong>Add</strong></li>
+          </ol>
+          <p class="note">Available on Claude Pro, Max, Team &amp; Enterprise.</p>
+        </div>
+        <div class="card install-card">
+          <h3><span class="badge">CHATGPT</span> Paste it in</h3>
+          <ol>
+            <li>Open <strong>Settings → Connectors</strong> (turn on <strong>Developer mode</strong> if asked)</li>
+            <li>Click <strong>Add</strong> / <strong>New connector</strong></li>
+            <li><strong>Paste the URL</strong> above and connect</li>
+          </ol>
+          <p class="note">Available on ChatGPT Plus, Pro &amp; Business.</p>
+        </div>
+      </div>
+
+      <div class="afterinstall">
+        <p><strong>That's it.</strong> When it connects, create your account, verify your number, and pick a plan. Then just tell your assistant: <span class="kbd">“Call me when this is done.”</span></p>
+        <div class="cta-row" style="justify-content:center;margin-top:1.2rem">
+          <a class="btn btn-primary" href="/#pricing">See plans</a>
+          <a class="btn btn-ghost" href="/account">Sign in &amp; subscribe</a>
+        </div>
+      </div>`;
+
+const COPY_SCRIPT = `<script>
+      function copyMcp(btn){
+        var u=document.getElementById('mcpurl').textContent.trim();
+        function done(){var t=btn.getAttribute('data-label')||btn.textContent;btn.setAttribute('data-label',t);btn.textContent='Copied ✓';setTimeout(function(){btn.textContent=t;},1600);}
+        if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(done,done);}
+        else{var r=document.createRange();r.selectNode(document.getElementById('mcpurl'));var s=window.getSelection();s.removeAllRanges();s.addRange(r);try{document.execCommand('copy');}catch(e){}s.removeAllRanges();done();}
+      }
+    </script>`;
+
 function landing(): string {
   return (
     HEAD(`${BRAND} — your AI assistant calls you when the work's done`) +
@@ -210,50 +257,27 @@ function landing(): string {
         <h2>Add ${BRAND} in about a minute</h2>
         <p class="lead" style="margin:.5rem auto 0">One connector URL. It drops right into the assistant you already use.</p>
       </div>
-
-      <div class="copybox">
-        <code id="mcpurl">${MCP}</code>
-        <button class="btn btn-primary copybtn" onclick="copyMcp(this)">Copy URL</button>
-      </div>
-      <p class="center" style="color:var(--muted);font-size:.9rem;margin-top:.6rem">Step 1 — copy this. Then paste it into Claude or ChatGPT below.</p>
-
-      <div class="install-grid">
-        <div class="card install-card">
-          <h3><span class="badge">CLAUDE</span> Paste it in</h3>
-          <ol>
-            <li>Open <strong>Settings → Connectors</strong></li>
-            <li>Click <strong>Add custom connector</strong></li>
-            <li><strong>Paste the URL</strong> above and click <strong>Add</strong></li>
-          </ol>
-          <p class="note">Available on Claude Pro, Max, Team &amp; Enterprise.</p>
-        </div>
-        <div class="card install-card">
-          <h3><span class="badge">CHATGPT</span> Paste it in</h3>
-          <ol>
-            <li>Open <strong>Settings → Connectors</strong> (turn on <strong>Developer mode</strong> if asked)</li>
-            <li>Click <strong>Add</strong> / <strong>New connector</strong></li>
-            <li><strong>Paste the URL</strong> above and connect</li>
-          </ol>
-          <p class="note">Available on ChatGPT Plus, Pro &amp; Business.</p>
-        </div>
-      </div>
-
-      <div class="afterinstall">
-        <p><strong>That's it.</strong> When it connects, create your account, verify your number, and pick a plan. Then just tell your assistant: <span class="kbd">“Call me when this is done.”</span></p>
-        <div class="cta-row" style="justify-content:center;margin-top:1.2rem">
-          <a class="btn btn-primary" href="#pricing">See plans</a>
-          <a class="btn btn-ghost" href="/account">Sign in &amp; subscribe</a>
-        </div>
-      </div>
+      ${INSTALL_BODY}
     </div></section>
-    <script>
-      function copyMcp(btn){
-        var u=document.getElementById('mcpurl').textContent.trim();
-        function done(){var t=btn.getAttribute('data-label')||btn.textContent;btn.setAttribute('data-label',t);btn.textContent='Copied ✓';setTimeout(function(){btn.textContent=t;},1600);}
-        if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(done,done);}
-        else{var r=document.createRange();r.selectNode(document.getElementById('mcpurl'));var s=window.getSelection();s.removeAllRanges();s.addRange(r);try{document.execCommand('copy');}catch(e){}s.removeAllRanges();done();}
-      }
-    </script>` +
+    ${COPY_SCRIPT}` +
+    FOOTER
+  );
+}
+
+// Focused, shareable install page — one clean link for tweets, DMs, Reddit, etc.
+function connect(): string {
+  return (
+    HEAD(`Add ${BRAND} to Claude or ChatGPT`) + NAV +
+    `<section><div class="wrap">
+      <div class="center installhead" style="padding-top:1.5rem">
+        <span class="eyebrow">60-second setup</span>
+        <h1 style="font-size:clamp(1.9rem,4vw,2.8rem)">Add ${BRAND} to your AI assistant</h1>
+        <p class="lead" style="margin:.7rem auto 0">Paste one URL into Claude or ChatGPT, verify your number, and your assistant can call your phone with updates. Here's exactly how.</p>
+      </div>
+      ${INSTALL_BODY}
+      <p class="center" style="margin-top:2.2rem"><a class="muted" href="/" style="color:var(--muted)">← What is ${BRAND}?</a></p>
+    </div></section>
+    ${COPY_SCRIPT}` +
     FOOTER
   );
 }
@@ -333,6 +357,7 @@ function terms(): string {
 export function buildSiteRouter(): Router {
   const router = Router();
   router.get("/", (_req, res) => res.type("text/html").send(landing()));
+  router.get("/connect", (_req, res) => res.type("text/html").send(connect()));
   router.get("/privacy", (_req, res) => res.type("text/html").send(privacy()));
   router.get("/terms", (_req, res) => res.type("text/html").send(terms()));
   // Machine-readable health check (was previously served at "/").
