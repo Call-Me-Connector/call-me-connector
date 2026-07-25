@@ -90,6 +90,19 @@ const HEAD = (title: string) => `<!doctype html><html lang="en"><head>
  .cta-band{background:linear-gradient(135deg,var(--indigo),var(--indigo2));color:#fff;border-radius:24px;padding:3rem 2rem;text-align:center;margin:1rem 0}
  .cta-band h2{color:#fff} .cta-band .btn-primary{background:#fff;color:var(--indigo);box-shadow:none}
  code.url{background:var(--soft);border:1px solid var(--line);border-radius:.5rem;padding:.35rem .6rem;font-size:.92rem;color:var(--ink);word-break:break-all}
+ /* install */
+ .installhead{max-width:44rem;margin:0 auto 0}
+ .copybox{display:flex;gap:.6rem;align-items:stretch;max-width:600px;margin:1.6rem auto 0;flex-wrap:wrap}
+ .copybox code{flex:1;min-width:240px;display:flex;align-items:center;background:var(--card);border:2px solid var(--indigo);border-radius:.8rem;padding:.8rem 1rem;font-size:1.05rem;color:var(--ink);word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+ .copybtn{white-space:nowrap;min-width:120px}
+ .install-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-top:1.8rem}
+ @media(max-width:820px){ .install-grid{grid-template-columns:1fr} }
+ .install-card{padding:1.6rem 1.5rem}
+ .install-card ol{margin:.7rem 0 0;padding-left:1.2rem} .install-card li{padding:.3rem 0;color:var(--body)}
+ .install-card .note{color:var(--muted);font-size:.86rem;margin-top:.8rem}
+ .badge{display:inline-block;background:linear-gradient(135deg,var(--indigo),var(--indigo2));color:#fff;font-weight:800;font-size:.78rem;padding:.22rem .6rem;border-radius:.5rem;margin-right:.5rem;vertical-align:middle;letter-spacing:.02em}
+ .afterinstall{text-align:center;max-width:40rem;margin:2rem auto 0;color:var(--body)}
+ .kbd{background:var(--soft);border:1px solid var(--line);border-radius:.4rem;padding:.1rem .45rem;font-size:.92rem;color:var(--ink);font-weight:600}
  footer{border-top:1px solid var(--line);padding:2.5rem 0;color:var(--muted);font-size:.92rem}
  footer .wrap{display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;align-items:center}
  footer a{color:var(--muted)} footer a:hover{color:var(--ink)}
@@ -103,7 +116,7 @@ const NAV = `<nav><div class="wrap">
     <a class="muted hide-m" href="/#how">How it works</a>
     <a class="muted hide-m" href="/#pricing">Pricing</a>
     <a class="muted" href="/account">Sign in</a>
-    <a class="btn btn-primary" href="/#get-started">Get started</a>
+    <a class="btn btn-primary" href="/#get-started">Add it free</a>
   </div>
 </div></nav>`;
 
@@ -126,10 +139,10 @@ function landing(): string {
         <h1>Get more done — without touching your desk.</h1>
         <p class="lead">${BRAND} lets your AI assistant <strong>phone you</strong> the moment a task is finished or it hits a wall. Hear the update, say what's next out loud, and keep moving. Your work follows you.</p>
         <div class="cta-row">
-          <a class="btn btn-primary" href="#get-started">Start for $6/mo</a>
+          <a class="btn btn-primary" href="#get-started">Add it in 60 seconds →</a>
           <a class="btn btn-ghost" href="#how">See how it works</a>
         </div>
-        <p class="trust">Works with Claude &amp; ChatGPT · Calls your own verified number · Cancel anytime</p>
+        <p class="trust">Works with Claude &amp; ChatGPT · Free to add · Calls your own verified number · Cancel anytime</p>
       </div>
       <div class="phone"><div class="screen">
         <div class="caller">
@@ -192,12 +205,55 @@ function landing(): string {
       </div>
     </div></section>
 
-    <section id="get-started"><div class="wrap"><div class="cta-band">
-      <h2>Ready to take your work on the road?</h2>
-      <p style="max-width:36rem;margin:.6rem auto 1.4rem;opacity:.95">Add ${BRAND} to your AI assistant, verify your number, and pick a plan. You'll be getting called with real progress in minutes.</p>
-      <p style="margin-bottom:1.2rem">In Claude or ChatGPT, add this connector URL:<br><code class="url" style="display:inline-block;margin-top:.6rem;background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.3);color:#fff">${MCP}</code></p>
-      <a class="btn btn-primary" href="/account">Manage your account →</a>
-    </div></div></section>` +
+    <section id="get-started"><div class="wrap">
+      <div class="center installhead">
+        <h2>Add ${BRAND} in about a minute</h2>
+        <p class="lead" style="margin:.5rem auto 0">One connector URL. It drops right into the assistant you already use.</p>
+      </div>
+
+      <div class="copybox">
+        <code id="mcpurl">${MCP}</code>
+        <button class="btn btn-primary copybtn" onclick="copyMcp(this)">Copy URL</button>
+      </div>
+      <p class="center" style="color:var(--muted);font-size:.9rem;margin-top:.6rem">Step 1 — copy this. Then paste it into Claude or ChatGPT below.</p>
+
+      <div class="install-grid">
+        <div class="card install-card">
+          <h3><span class="badge">CLAUDE</span> Paste it in</h3>
+          <ol>
+            <li>Open <strong>Settings → Connectors</strong></li>
+            <li>Click <strong>Add custom connector</strong></li>
+            <li><strong>Paste the URL</strong> above and click <strong>Add</strong></li>
+          </ol>
+          <p class="note">Available on Claude Pro, Max, Team &amp; Enterprise.</p>
+        </div>
+        <div class="card install-card">
+          <h3><span class="badge">CHATGPT</span> Paste it in</h3>
+          <ol>
+            <li>Open <strong>Settings → Connectors</strong> (turn on <strong>Developer mode</strong> if asked)</li>
+            <li>Click <strong>Add</strong> / <strong>New connector</strong></li>
+            <li><strong>Paste the URL</strong> above and connect</li>
+          </ol>
+          <p class="note">Available on ChatGPT Plus, Pro &amp; Business.</p>
+        </div>
+      </div>
+
+      <div class="afterinstall">
+        <p><strong>That's it.</strong> When it connects, create your account, verify your number, and pick a plan. Then just tell your assistant: <span class="kbd">“Call me when this is done.”</span></p>
+        <div class="cta-row" style="justify-content:center;margin-top:1.2rem">
+          <a class="btn btn-primary" href="#pricing">See plans</a>
+          <a class="btn btn-ghost" href="/account">Sign in &amp; subscribe</a>
+        </div>
+      </div>
+    </div></section>
+    <script>
+      function copyMcp(btn){
+        var u=document.getElementById('mcpurl').textContent.trim();
+        function done(){var t=btn.getAttribute('data-label')||btn.textContent;btn.setAttribute('data-label',t);btn.textContent='Copied ✓';setTimeout(function(){btn.textContent=t;},1600);}
+        if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(done,done);}
+        else{var r=document.createRange();r.selectNode(document.getElementById('mcpurl'));var s=window.getSelection();s.removeAllRanges();s.addRange(r);try{document.execCommand('copy');}catch(e){}s.removeAllRanges();done();}
+      }
+    </script>` +
     FOOTER
   );
 }
