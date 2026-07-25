@@ -1,0 +1,13 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "app.getcallme/call-me",
+  "description": "Calls your phone when an AI task finishes or is blocked — hear it, say what's next.",
+  "version": "1.0.0",
+  "websiteUrl": "https://getcallme.app",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://getcallme.app/mcp"
+    }
+  ]
+}
