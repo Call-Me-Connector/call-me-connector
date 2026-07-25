@@ -88,10 +88,14 @@ you automatically have the required **Apps Management** write permission.
    Directory (shared by ChatGPT + Codex).
 
 **Reviewer demo credentials (works without SMS — required by OpenAI):**
-> Email `georgevogeljr10+reviewer@gmail.com`, password `CallMe-Review-2026`.
-> On the sign-in screen tap **Create account** (or Sign in if it exists). Enter **your
-> own phone number** — no SMS code is required for this account, it's trusted instantly —
-> then ask the assistant to call you. (This allowlisted account also skips the paywall.)
+> Set a dedicated reviewer email in the `REVIEWER_EMAILS` env var (comma-separated), then
+> give the store that email + a password. Allowlisted accounts skip the SMS-verification
+> step and the paywall so a reviewer can complete the call flow end-to-end.
+> **Do not commit real reviewer credentials to this (public) repo** — keep them in the
+> submission portal only.
+
+_Note: this repo is public; store-submission is not currently active. See `DIRECTORIES.md`
+for the organic/direct-link distribution plan._
 
 **Starter prompts:**
 - "When this task finishes, call me with a summary and ask what to prioritize next."
