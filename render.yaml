@@ -50,6 +50,11 @@ services:
       # Verification channel: "sms" or "call".
       - key: VERIFY_CHANNEL
         value: sms
+      # ---- SMS (Pro): text summary on no-answer + capture texted replies ----
+      # The A2P 10DLC-registered Messaging Service SID. Setting this turns SMS ON.
+      # Requires Twilio A2P 10DLC brand + campaign approval first.
+      - key: TWILIO_MESSAGING_SERVICE_SID
+        sync: false
       # ---- Stripe billing ----
       # Setting STRIPE_SECRET_KEY turns on the paywall (calls require a
       # subscription). Leave blank until Stripe is set up.

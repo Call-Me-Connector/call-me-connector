@@ -11,10 +11,17 @@ const MAX_TIMEOUT_S = 240;
 
 function describeResult(rec: CallRecord): string {
   if (rec.transcript) {
+    const via = rec.smsFallback ? "replied by text" : "answered and said";
     return (
-      `The user answered and said:\n\n"${rec.transcript}"\n\n` +
-      `Act on these spoken instructions. If anything is ambiguous, ask before doing something ` +
+      `The user ${via}:\n\n"${rec.transcript}"\n\n` +
+      `Act on these instructions. If anything is ambiguous, ask before doing something ` +
       `irreversible. (call_id: ${rec.id})`
+    );
+  }
+  if (rec.smsFallback) {
+    return (
+      `The user didn't pick up, so I texted them the summary. They'll reply by SMS — ` +
+      `call get_call_result with call_id ${rec.id} in a bit to read their response. (call_id: ${rec.id})`
     );
   }
   switch (rec.status) {
@@ -44,6 +51,8 @@ function structured(rec: CallRecord) {
     answered: rec.transcript != null,
     transcript: rec.transcript ?? null,
     confidence: rec.confidence ?? null,
+    sms_fallback: rec.smsFallback ?? false,
+    reply_channel: rec.transcript ? (rec.smsFallback ? "sms" : "voice") : null,
   };
 }
 
@@ -186,6 +195,8 @@ export function createMcpServer(userId: string): McpServer {
         nextSteps: input.next_steps,
         to: user.phone_e164,
         conversational: wantsConversation,
+        // Pro accounts get an SMS fallback if they don't pick up (once SMS is enabled).
+        smsEligible: user.tier === "pro" && config.smsEnabled,
       });
 
       try {

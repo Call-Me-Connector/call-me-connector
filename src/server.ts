@@ -10,7 +10,8 @@ import { buildAccountRouter } from "./account.js";
 import { buildSiteRouter } from "./site.js";
 import { handleWebhook } from "./billing.js";
 import { initSchema } from "./db.js";
-import type { CallStatus } from "./store.js";
+import { sendSms, buildFallbackSms } from "./messaging.js";
+import type { CallStatus, CallRecord } from "./store.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -214,8 +215,45 @@ app.post("/voice/status", twilioBody, (req, res) => {
     if (status === "completed" && rec.conversational) {
       store.finalize(callId);
     }
+    // Pro SMS fallback: they didn't pick up → text them the summary. Mark it
+    // synchronously so the waiting tool reports "texted you" instead of "no answer",
+    // then send in the background.
+    const missed = status === "no-answer" || status === "busy" || status === "failed";
+    if (missed && rec.smsEligible && !rec.smsFallback && config.smsEnabled && rec.summary) {
+      store.update(callId, { smsFallback: true });
+      void sendFallbackSms(rec);
+    }
   }
   res.sendStatus(204);
+});
+
+/** Text the summary to a caller who didn't answer. smsFallback is already set. */
+async function sendFallbackSms(rec: CallRecord): Promise<void> {
+  try {
+    const sid = await sendSms(rec.to, buildFallbackSms(rec));
+    store.update(rec.id, { smsSid: sid });
+  } catch (err) {
+    console.error("[sms] fallback send failed:", err);
+    store.update(rec.id, { smsFallback: false, error: "SMS fallback failed to send." });
+  }
+}
+
+// Inbound SMS (Twilio Messaging webhook) — attach a texted reply to its pending call.
+app.post("/sms/inbound", twilioBody, (req, res) => {
+  if (!verifyTwilio(req, res)) return;
+  const from = String(req.body.From ?? "");
+  const body = String(req.body.Body ?? "").trim();
+  const rec = from ? store.findPendingByPhone(from) : undefined;
+  if (rec && body) {
+    if (rec.conversational) {
+      store.addTurn(rec.id, body);
+      store.finalize(rec.id);
+    } else {
+      store.update(rec.id, { transcript: body });
+    }
+  }
+  // Empty TwiML: acknowledge without auto-replying.
+  res.type("text/xml").send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
 });
 
 // ---------------------------------------------------------------------------

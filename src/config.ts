@@ -52,6 +52,15 @@ export const config = {
   // Twilio Verify service SID, used to send/check phone verification codes.
   verifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID ?? "",
 
+  // ---- SMS (Pro): text the summary if the call isn't answered + capture texted replies ----
+  // Sending SMS *content* from a US number requires Twilio A2P 10DLC registration.
+  // Set TWILIO_MESSAGING_SERVICE_SID (the A2P-registered Messaging Service) to turn SMS
+  // features ON. Until then they stay off and calls behave exactly as before.
+  messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID ?? "",
+  get smsEnabled(): boolean {
+    return this.messagingServiceSid.length > 0 || isTrue(process.env.SMS_ENABLED, false);
+  },
+
   // ---- Stripe billing ----
   // Billing only activates when STRIPE_SECRET_KEY is set. Until then every
   // verified user can call (no paywall), so nothing breaks before setup.

@@ -32,6 +32,11 @@ export interface CallRecord {
   transcript?: string;
   /** Twilio's confidence in the last transcription, 0..1. */
   confidence?: number;
+  /** True when this call may fall back to SMS (Pro tier + SMS enabled), decided at creation. */
+  smsEligible?: boolean;
+  /** Set once we've texted the summary because the call wasn't answered. */
+  smsFallback?: boolean;
+  smsSid?: string;
   error?: string;
   completedAt?: number;
 }
@@ -57,6 +62,7 @@ class CallStore {
     nextSteps?: string;
     to: string;
     conversational?: boolean;
+    smsEligible?: boolean;
   }): CallRecord {
     const rec: CallRecord = {
       id: randomUUID(),
@@ -68,6 +74,7 @@ class CallStore {
       questions: input.questions,
       nextSteps: input.nextSteps,
       conversational: input.conversational ?? false,
+      smsEligible: input.smsEligible ?? false,
       turns: [],
     };
     this.calls.set(rec.id, rec);
@@ -99,6 +106,9 @@ class CallStore {
       const rec = this.calls.get(id);
       if (!rec) return undefined;
       if (rec.transcript != null) return rec;
+      // If we've fallen back to SMS, don't block on the (slow, async) texted reply —
+      // return now so the tool tells the assistant to fetch it later.
+      if (rec.smsFallback) return rec;
       if (TERMINAL_FAILURES.includes(rec.status)) return rec;
       // The "completed" status callback can arrive a beat before or after the
       // speech webhook. Give the transcript a short grace window before giving
@@ -117,6 +127,21 @@ class CallStore {
     if (!rec) return undefined;
     if (utterance.trim()) rec.turns.push(utterance.trim());
     return rec;
+  }
+
+  /**
+   * Find the most recent call to `phone` still awaiting a reply — used to attach an
+   * inbound SMS to the right call. Only matches calls that texted (smsFallback) or are
+   * conversational, and that haven't captured a reply yet.
+   */
+  findPendingByPhone(phone: string): CallRecord | undefined {
+    let best: CallRecord | undefined;
+    for (const rec of this.calls.values()) {
+      if (rec.to !== phone || rec.transcript != null) continue;
+      if (!rec.smsFallback && !rec.conversational) continue;
+      if (!best || rec.createdAt > best.createdAt) best = rec;
+    }
+    return best;
   }
 
   /** Collapse the captured turns into the final transcript (idempotent). */
