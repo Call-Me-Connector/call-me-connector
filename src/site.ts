@@ -1,4 +1,5 @@
-import { Router } from "express";
+import express, { Router } from "express";
+import path from "node:path";
 import { config } from "./config.js";
 
 /**
@@ -103,6 +104,9 @@ const HEAD = (title: string) => `<!doctype html><html lang="en"><head>
  .badge{display:inline-block;background:linear-gradient(135deg,var(--indigo),var(--indigo2));color:#fff;font-weight:800;font-size:.78rem;padding:.22rem .6rem;border-radius:.5rem;margin-right:.5rem;vertical-align:middle;letter-spacing:.02em}
  .afterinstall{text-align:center;max-width:40rem;margin:2rem auto 0;color:var(--body)}
  .kbd{background:var(--soft);border:1px solid var(--line);border-radius:.4rem;padding:.1rem .45rem;font-size:.92rem;color:var(--ink);font-weight:600}
+ /* demo video */
+ .demo-wrap{display:flex;justify-content:center;margin-top:2rem}
+ .demo-vid{width:340px;max-width:86vw;aspect-ratio:9/16;border-radius:30px;background:#0c0e1a;box-shadow:0 40px 90px -30px rgba(20,10,60,.65);border:1px solid var(--line);display:block}
  footer{border-top:1px solid var(--line);padding:2.5rem 0;color:var(--muted);font-size:.92rem}
  footer .wrap{display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;align-items:center}
  footer a{color:var(--muted)} footer a:hover{color:var(--ink)}
@@ -187,7 +191,7 @@ function landing(): string {
         <p class="lead">${BRAND} lets your AI assistant <strong>phone you</strong> the moment a task is finished or it hits a wall. Hear the update, say what's next out loud, and keep moving. Your work follows you.</p>
         <div class="cta-row">
           <a class="btn btn-primary" href="#get-started">Add it in 60 seconds →</a>
-          <a class="btn btn-ghost" href="#how">See how it works</a>
+          <a class="btn btn-ghost" href="#demo">▶ Watch the 30s demo</a>
         </div>
         <p class="trust">Works with Claude &amp; ChatGPT · Free to add · Calls your own verified number · Cancel anytime</p>
       </div>
@@ -204,6 +208,14 @@ function landing(): string {
         </div>
       </div></div>
     </div></div></header>
+
+    <section id="demo" class="soft"><div class="wrap">
+      <div class="center"><h2>See it in action</h2><p class="lead" style="margin:.5rem auto 0">Thirty seconds: your phone rings, your AI reads the update, you say what's next.</p></div>
+      <div class="demo-wrap">
+        <video class="demo-vid" src="/assets/callme-demo-sound.mp4" poster="/assets/demo-poster.jpg" autoplay muted loop playsinline controls preload="metadata"></video>
+      </div>
+      <p class="center" style="color:var(--muted);font-size:.9rem;margin-top:.8rem">🔊 Tap the video for sound</p>
+    </div></section>
 
     <section id="who"><div class="wrap center">
       <h2>When you're always moving, your work shouldn't wait.</h2>
@@ -371,6 +383,10 @@ export function buildSiteRouter(): Router {
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f46e5"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#g)"/><text x="32" y="44" font-size="34" text-anchor="middle">📞</text></svg>`
     );
   });
+
+  // Static assets (demo video, poster, icon) served from the repo's assets/ dir.
+  // Supports HTTP range requests, so the <video> element can seek/stream.
+  router.use("/assets", express.static(path.resolve(process.cwd(), "assets"), { maxAge: "30d" }));
 
   // Official MCP Registry domain ownership proof (HTTP auth). The public key is
   // meant to be public; the matching private key is used only locally to publish.
