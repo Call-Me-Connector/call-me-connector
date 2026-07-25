@@ -372,6 +372,12 @@ export function buildSiteRouter(): Router {
     );
   });
 
+  // Official MCP Registry domain ownership proof (HTTP auth). The public key is
+  // meant to be public; the matching private key is used only locally to publish.
+  router.get("/.well-known/mcp-registry-auth", (_req, res) =>
+    res.type("text/plain").send("v=MCPv1; k=ed25519; p=X3I1qT3xb8TwyF3DMoRzobGOiDxgQFgs3ObtW+83hgM=\n")
+  );
+
   // ChatGPT/OpenAI domain-verification token, served as plain text at the path
   // OpenAI specifies (set OPENAI_VERIFICATION_PATH + OPENAI_VERIFICATION_TOKEN).
   if (config.openaiVerificationPath && config.openaiVerificationToken) {
