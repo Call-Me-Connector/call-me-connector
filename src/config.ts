@@ -85,7 +85,7 @@ export const config = {
   language: process.env.LANGUAGE ?? "en-US",
 
   // Public-facing contact + brand for the marketing site.
-  supportEmail: process.env.SUPPORT_EMAIL ?? "georgevogeljr10@gmail.com",
+  supportEmail: process.env.SUPPORT_EMAIL ?? "getcallmenow@gmail.com",
   brandName: process.env.BRAND_NAME ?? "Call Me",
 
   // ChatGPT/OpenAI domain verification: at app submission OpenAI gives you a
