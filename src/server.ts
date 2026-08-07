@@ -4,7 +4,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { config } from "./config.js";
 import { store } from "./store.js";
 import { createMcpServer } from "./mcp.js";
-import { buildOutboundTwiml, buildCollectTwiml, buildRepromptTwiml } from "./twiml.js";
+import { buildOutboundTwiml, buildCollectTwiml, buildRepromptTwiml, buildWelcomeTwiml } from "./twiml.js";
 import { buildOAuthRouter, verifyAccessToken } from "./oauth.js";
 import { buildAccountRouter } from "./account.js";
 import { buildSiteRouter } from "./site.js";
@@ -135,10 +135,10 @@ function verifyTwilio(req: Request, res: Response): boolean {
 }
 
 // Played when the callee answers: read the update, then gather speech.
-app.post("/voice/outbound", twilioBody, (req, res) => {
+app.post("/voice/outbound", twilioBody, async (req, res) => {
   if (!verifyTwilio(req, res)) return;
   const callId = String(req.query.callId ?? "");
-  const rec = store.get(callId);
+  const rec = await store.getOrLoad(callId);
   if (!rec) {
     const vr = new twilio.twiml.VoiceResponse();
     vr.say("Sorry, this call has expired. Goodbye.");
@@ -146,6 +146,10 @@ app.post("/voice/outbound", twilioBody, (req, res) => {
     return res.type("text/xml").send(vr.toString());
   }
   store.update(callId, { status: "in-progress" });
+  // Welcome/demo call (placed right after signup): just say hello, no gather.
+  if (rec.welcome) {
+    return res.type("text/xml").send(buildWelcomeTwiml());
+  }
   const collectUrl = `${config.publicUrl}/voice/collect?callId=${encodeURIComponent(callId)}`;
   res.type("text/xml").send(buildOutboundTwiml(rec, collectUrl));
 });
@@ -155,10 +159,10 @@ const STOP_WORDS = /\b(that'?s all|that is all|i'?m done|we'?re done|all done|no
 const MAX_TURNS = 8;
 
 // Receives the transcribed speech (or digits) from the <Gather>.
-app.post("/voice/collect", twilioBody, (req, res) => {
+app.post("/voice/collect", twilioBody, async (req, res) => {
   if (!verifyTwilio(req, res)) return;
   const callId = String(req.query.callId ?? "");
-  const rec = store.get(callId);
+  const rec = await store.getOrLoad(callId);
   if (!rec) {
     return res.type("text/xml").send(buildCollectTwiml(undefined));
   }
@@ -191,7 +195,7 @@ app.post("/voice/collect", twilioBody, (req, res) => {
 });
 
 // Call lifecycle events (ringing, answered, completed, failed, ...).
-app.post("/voice/status", twilioBody, (req, res) => {
+app.post("/voice/status", twilioBody, async (req, res) => {
   if (!verifyTwilio(req, res)) return;
   const callId = String(req.query.callId ?? "");
   const raw = String(req.body.CallStatus ?? "");
@@ -208,7 +212,7 @@ app.post("/voice/status", twilioBody, (req, res) => {
     canceled: "canceled",
   };
   const status = map[raw];
-  const rec = store.get(callId);
+  const rec = await store.getOrLoad(callId);
   if (status && rec) {
     store.update(callId, { status });
     // If the caller hung up mid-conversation, keep whatever they already said.
@@ -239,11 +243,11 @@ async function sendFallbackSms(rec: CallRecord): Promise<void> {
 }
 
 // Inbound SMS (Twilio Messaging webhook) — attach a texted reply to its pending call.
-app.post("/sms/inbound", twilioBody, (req, res) => {
+app.post("/sms/inbound", twilioBody, async (req, res) => {
   if (!verifyTwilio(req, res)) return;
   const from = String(req.body.From ?? "");
   const body = String(req.body.Body ?? "").trim();
-  const rec = from ? store.findPendingByPhone(from) : undefined;
+  const rec = from ? await store.findPendingByPhone(from) : undefined;
   if (rec && body) {
     if (rec.conversational) {
       store.addTurn(rec.id, body);

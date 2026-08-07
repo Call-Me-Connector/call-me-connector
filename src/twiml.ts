@@ -38,9 +38,26 @@ export function buildOutboundTwiml(rec: CallRecord, collectUrl: string): string 
   }
 
   const prompt = rec.conversational
-    ? "After the beep, tell me how you would like me to proceed. You can keep talking; just say \"done\" when you are finished."
-    : "After the beep, tell me how you would like me to proceed, then pause when you are done.";
+    ? "Go ahead — tell me how you would like me to proceed. You can keep talking; just say \"done\" when you are finished."
+    : "Go ahead — tell me how you would like me to proceed, then pause when you are done.";
   gatherSpeech(vr, collectUrl, prompt);
+  return vr.toString();
+}
+
+/**
+ * One-time welcome/demo call placed right after a user verifies their number —
+ * shows off the voice and the "your phone rings" moment before they've done anything.
+ */
+export function buildWelcomeTwiml(): string {
+  const vr = new VoiceResponse();
+  vr.say(
+    say,
+    "Hey! This is Call Me. Your number is verified and you're all set. " +
+      "From now on, whenever one of your tasks finishes or your assistant gets stuck, " +
+      "I'll ring you just like this and read you the update — and you can talk right back " +
+      "to tell me what to do next. That's it. Talk soon!"
+  );
+  vr.hangup();
   return vr.toString();
 }
 

@@ -33,7 +33,7 @@ services:
       - key: OWNER_ACCESS_CODE
         sync: false
       - key: VOICE
-        value: Polly.Joanna
+        value: Polly.Joanna-Neural
       - key: LANGUAGE
         value: en-US
       - key: SPEECH_TIMEOUT

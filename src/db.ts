@@ -83,6 +83,17 @@ export async function initSchema(): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS call_events_user_month_idx ON call_events(user_id, created_at);
+
+    -- Full call state, persisted so an in-flight call survives a redeploy/restart.
+    CREATE TABLE IF NOT EXISTS calls (
+      id         text PRIMARY KEY,
+      user_id    text,
+      data       jsonb NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS calls_to_idx ON calls ((data->>'to'));
+    CREATE INDEX IF NOT EXISTS calls_created_idx ON calls (created_at);
   `);
   console.log("[db] schema ready");
 }

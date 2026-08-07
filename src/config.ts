@@ -90,7 +90,7 @@ export const config = {
   // A2P 10DLC registration that SMS from a 10-digit number requires.
   verifyChannel: (process.env.VERIFY_CHANNEL ?? "sms").toLowerCase() === "call" ? "call" : "sms",
 
-  voice: process.env.VOICE ?? "Polly.Joanna",
+  voice: process.env.VOICE ?? "Polly.Joanna-Neural",
   language: process.env.LANGUAGE ?? "en-US",
 
   // Public-facing contact + brand for the marketing site.

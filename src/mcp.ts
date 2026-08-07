@@ -5,6 +5,7 @@ import { store, type CallRecord } from "./store.js";
 import { placeCall } from "./twilio.js";
 import { findById, isSubscribed } from "./users.js";
 import { callsThisMonth, recordCall } from "./usage.js";
+import { createCheckoutUrl } from "./billing.js";
 
 const DEFAULT_TIMEOUT_S = 150;
 const MAX_TIMEOUT_S = 240;
@@ -142,14 +143,27 @@ export function createMcpServer(userId: string): McpServer {
       // allowlist emails skip it so store reviewers can test calls.
       const isReviewer = config.reviewerEmails.includes(user.email.toLowerCase());
       if (config.billingEnabled && !isReviewer && !isSubscribed(user)) {
+        // Generate a one-tap Stripe Checkout link so the user can subscribe
+        // straight from the assistant's reply (falls back to /account on error).
+        let link = `${config.publicUrl}/account`;
+        try {
+          link = await createCheckoutUrl(
+            user,
+            "basic",
+            `${config.publicUrl}/account?welcome=1`,
+            `${config.publicUrl}/#pricing`
+          );
+        } catch (err) {
+          console.error("[mcp] checkout link failed:", err);
+        }
         return {
           isError: true,
           content: [
             {
               type: "text",
               text:
-                "This account doesn't have an active subscription, so calls are paused. " +
-                `Ask the user to subscribe (Basic $6/mo or Pro $9/mo) at ${config.publicUrl}/account to start receiving calls.`,
+                "This account doesn't have an active subscription yet, so calls are paused. " +
+                `Give the user this one-tap link to subscribe (Basic $6/mo; Pro $9/mo adds full back-and-forth conversation): ${link}`,
             },
           ],
         };
@@ -247,12 +261,12 @@ export function createMcpServer(userId: string): McpServer {
       },
     },
     async ({ call_id }) => {
-      const rec = store.get(call_id);
+      const rec = await store.getOrLoad(call_id);
       // Ownership check: a user can only read their own calls.
       if (!rec || rec.userId !== userId) {
         return {
           isError: true,
-          content: [{ type: "text", text: `No call found with call_id ${call_id}. It may have expired (records are kept for one hour).` }],
+          content: [{ type: "text", text: `No call found with call_id ${call_id}. It may have expired.` }],
         };
       }
       return {

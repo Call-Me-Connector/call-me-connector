@@ -6,6 +6,8 @@ import { config } from "./config.js";
 import { query } from "./db.js";
 import { authenticate, createUser, findById, setPhone, markPhoneVerified } from "./users.js";
 import { startVerification, checkVerification, isE164, normalizePhone } from "./verify.js";
+import { store } from "./store.js";
+import { placeCall } from "./twilio.js";
 
 /**
  * Multi-tenant OAuth 2.1 authorization server.
@@ -366,6 +368,21 @@ export function buildOAuthRouter(): Router {
       return res.status(400).type("text/html").send(verifyPage(b.flow, flow.phone, "That code wasn't right. Try again."));
     }
     await markPhoneVerified(flow.userId);
+    // Place a one-time welcome/demo call so the user feels the product the moment
+    // they finish setup — the "your phone actually rings" wow, before any paywall.
+    // Fire-and-forget: never let a call hiccup block the connection completing.
+    try {
+      const rec = store.create({
+        userId: flow.userId,
+        to: flow.phone,
+        summary: "Welcome call",
+        questions: [],
+        welcome: true,
+      });
+      placeCall(rec).catch((e) => console.error("[oauth] welcome call failed:", e));
+    } catch (e) {
+      console.error("[oauth] welcome call setup failed:", e);
+    }
     return issueCodeAndRedirect(res, flow);
   });
 
