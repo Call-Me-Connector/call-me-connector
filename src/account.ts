@@ -3,7 +3,7 @@ import express from "express";
 import { SignJWT, jwtVerify } from "jose";
 import { config } from "./config.js";
 import { authenticate, findByEmail, findById, isSubscribed, type User } from "./users.js";
-import { createCheckoutUrl, createPortalUrl, type Plan } from "./billing.js";
+import { createCheckoutUrl, createPublicCheckoutUrl, createPortalUrl, type Plan } from "./billing.js";
 import { sendEmail, emailLayout } from "./mailer.js";
 
 /**
@@ -181,9 +181,73 @@ function dashboardPage(user: User, notice?: string): string {
   );
 }
 
+// Public early-member offer landing (linked from the win-back email). No login:
+// checkout collects the email, and the webhook activates the matching account.
+function startPage(): string {
+  return page(
+    "Early-member offer",
+    `<h1>Your first month is $4.99</h1>
+     <p class="sub">Early-member pricing — then $6/mo, cancel anytime.</p>
+     <div class="card">
+       <p style="margin:.2rem 0"><strong>Call Me</strong> phones you when a Claude or ChatGPT task finishes or gets stuck, reads you the update, and lets you talk back to say what to do next.</p>
+     </div>
+     <form method="POST" action="/start">
+       <button type="submit">Continue to secure checkout →</button>
+     </form>
+     <p class="sub" style="font-size:.82rem;margin-top:1rem">Use the same email you signed up with so we can activate your existing account. Checkout is handled securely by Stripe and the $4.99 first-month price is applied automatically.</p>`
+  );
+}
+
+function startDonePage(): string {
+  return page(
+    "You're all set",
+    `<h1>🎉 You're all set</h1>
+     <p>Your payment went through and your Call Me account is now active.</p>
+     <div class="card">
+       <p style="margin:.2rem 0">If you've already added Call Me as a connector in Claude or ChatGPT, you're ready — just ask it to call you when a task finishes.</p>
+       <p style="margin:.6rem 0 .2rem" class="sub">Not set up yet? Go to <a href="/connect">getcallme.app/connect</a> for the one-minute setup.</p>
+     </div>
+     <p class="sub" style="font-size:.85rem">Questions? Email support@getcallme.app.</p>`
+  );
+}
+
 export function buildAccountRouter(): Router {
   const router = Router();
   const form = express.urlencoded({ extended: false });
+
+  // $4.99 early-member offer (public, no login) — the email's call-to-action.
+  router.get("/start", (_req, res) => {
+    res.type("text/html").send(startPage());
+  });
+
+  router.post("/start", form, async (_req, res) => {
+    if (!config.billingEnabled) {
+      return res.status(503).type("text/html").send(startPage());
+    }
+    try {
+      const url = await createPublicCheckoutUrl(
+        "basic",
+        `${config.publicUrl}/start/done`,
+        `${config.publicUrl}/start`
+      );
+      res.redirect(303, url);
+    } catch (e) {
+      console.error("[start] checkout failed:", e);
+      res
+        .status(500)
+        .type("text/html")
+        .send(
+          page(
+            "Something went wrong",
+            `<h1>Sorry — checkout couldn't start</h1><p class="sub">Please try again in a moment, or email support@getcallme.app.</p>`
+          )
+        );
+    }
+  });
+
+  router.get("/start/done", (_req, res) => {
+    res.type("text/html").send(startDonePage());
+  });
 
   router.get("/account", async (req, res) => {
     const userId = await readSession(req);

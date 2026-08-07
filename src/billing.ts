@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { config } from "./config.js";
 import {
-  findById,
+  findByEmail,
   findByStripeCustomerId,
   setStripeCustomerId,
   setSubscription,
@@ -94,6 +94,35 @@ export async function createCheckoutUrl(
   return session.url;
 }
 
+/**
+ * Create a Checkout session for someone who ISN'T logged in (e.g. a link in a
+ * win-back email). Stripe collects their email at checkout; the webhook then
+ * matches that email back to their existing Call Me account and activates it.
+ * The launch coupon (if set) auto-applies for the first month.
+ */
+export async function createPublicCheckoutUrl(
+  tier: Plan,
+  successUrl: string,
+  cancelUrl: string
+): Promise<string> {
+  const price = priceForTier(tier);
+  if (!price) throw new Error(`No Stripe price configured for the ${tier} plan.`);
+  const discount = config.stripe.firstMonthCoupon
+    ? { discounts: [{ coupon: config.stripe.firstMonthCoupon }] }
+    : { allow_promotion_codes: true as const };
+  // No `customer` in subscription mode → Stripe collects the email and creates
+  // the customer. We reconcile to the account by email in the webhook.
+  const session = await getStripe().checkout.sessions.create({
+    mode: "subscription",
+    line_items: [{ price, quantity: 1 }],
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    ...discount,
+  });
+  if (!session.url) throw new Error("Stripe did not return a checkout URL.");
+  return session.url;
+}
+
 /** Create a Billing Portal session (manage/cancel) and return its URL. */
 export async function createPortalUrl(user: User, returnUrl: string): Promise<string> {
   const customerId = await ensureCustomer(user);
@@ -128,11 +157,24 @@ export async function handleWebhook(rawBody: Buffer, signature: string): Promise
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
-      const userId = session.client_reference_id;
       const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
+      // Logged-in checkout carries the user id; a public email-link checkout
+      // doesn't, so fall back to matching the account by the email they paid with.
+      let userId = session.client_reference_id ?? null;
+      if (!userId) {
+        const email = session.customer_details?.email ?? undefined;
+        const matched = email ? await findByEmail(email) : null;
+        if (matched) {
+          userId = matched.id;
+          console.log(`[billing] public checkout matched ${email} -> user ${userId}`);
+        } else {
+          console.warn(`[billing] public checkout for unmatched email: ${email ?? "(none)"}`);
+        }
+      }
       if (userId && customerId) {
-        const user = await findById(userId);
-        if (user && !user.stripe_customer_id) await setStripeCustomerId(userId, customerId);
+        // Point the account at the customer holding this subscription so the
+        // billing portal and subscription sync resolve to it.
+        await setStripeCustomerId(userId, customerId);
       }
       if (session.subscription) {
         const subId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
