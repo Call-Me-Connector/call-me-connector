@@ -109,12 +109,16 @@ function loginPage(error?: string): string {
        <button type="submit">Sign in</button>
      </form>
      <p class="sub" style="font-size:.85rem">Use the same email and password you created when connecting Call Me.</p>
-     <hr style="border:0;border-top:1px solid #8883;margin:1.5rem 0">
+     ${
+       config.emailEnabled
+         ? `<hr style="border:0;border-top:1px solid #8883;margin:1.5rem 0">
      <p class="sub" style="font-size:.9rem">Forgot your password? Get a one-time sign-in link by email:</p>
      <form method="POST" action="/account/magic-request">
        <label>Email<input type="email" name="email" autocomplete="email" required></label>
        <button type="submit" class="sec">Email me a sign-in link</button>
      </form>`
+         : ""
+     }`
   );
 }
 
