@@ -69,9 +69,23 @@ export const config = {
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
     priceBasic: process.env.STRIPE_PRICE_BASIC ?? "", // price_… for the $6/mo plan
     pricePro: process.env.STRIPE_PRICE_PRO ?? "", // price_… for the $9/mo plan
+    // Coupon auto-applied to the FIRST invoice of every new checkout (early-bird
+    // launch pricing, e.g. a "$4.99 first month" offer). Blank = full price.
+    firstMonthCoupon: process.env.STRIPE_FIRST_MONTH_COUPON ?? "",
   },
   get billingEnabled() {
     return this.stripe.secretKey.length > 0;
+  },
+
+  // ---- Transactional email (Resend) ----
+  // Setting RESEND_API_KEY turns on outbound email (magic sign-in links, etc.).
+  // The From address must be on a domain you've verified in Resend.
+  email: {
+    resendApiKey: process.env.RESEND_API_KEY ?? "",
+    from: process.env.EMAIL_FROM ?? "Call Me <support@getcallme.app>",
+  },
+  get emailEnabled(): boolean {
+    return this.email.resendApiKey.length > 0;
   },
 
   // Monthly fair-use call caps per plan (protects margin from heavy usage).

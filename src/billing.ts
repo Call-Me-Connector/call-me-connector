@@ -74,6 +74,13 @@ export async function createCheckoutUrl(
   const price = priceForTier(tier);
   if (!price) throw new Error(`No Stripe price configured for the ${tier} plan.`);
   const customerId = await ensureCustomer(user);
+  // A configured launch coupon (e.g. "$4.99 first month") auto-applies to the
+  // first invoice. Stripe forbids `discounts` and `allow_promotion_codes`
+  // together, so we pick one: auto-discount when a coupon is set, otherwise let
+  // the customer type a promo code.
+  const discount = config.stripe.firstMonthCoupon
+    ? { discounts: [{ coupon: config.stripe.firstMonthCoupon }] }
+    : { allow_promotion_codes: true as const };
   const session = await getStripe().checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
@@ -81,7 +88,7 @@ export async function createCheckoutUrl(
     line_items: [{ price, quantity: 1 }],
     success_url: successUrl,
     cancel_url: cancelUrl,
-    allow_promotion_codes: true,
+    ...discount,
   });
   if (!session.url) throw new Error("Stripe did not return a checkout URL.");
   return session.url;

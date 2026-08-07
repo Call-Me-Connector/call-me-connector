@@ -2,8 +2,9 @@ import { Router, type Request, type Response } from "express";
 import express from "express";
 import { SignJWT, jwtVerify } from "jose";
 import { config } from "./config.js";
-import { authenticate, findById, isSubscribed, type User } from "./users.js";
+import { authenticate, findByEmail, findById, isSubscribed, type User } from "./users.js";
 import { createCheckoutUrl, createPortalUrl, type Plan } from "./billing.js";
+import { sendEmail, emailLayout } from "./mailer.js";
 
 /**
  * Customer self-serve account page: sign in, subscribe (Stripe Checkout), and
@@ -24,6 +25,31 @@ async function signSession(userId: string): Promise<string> {
     .setIssuedAt()
     .setExpirationTime(SESSION_TTL)
     .sign(key());
+}
+
+// One-time sign-in link (magic link): a short-lived token, distinct audience so
+// it can't be swapped for a session cookie. Lets users who forgot their password
+// get back in by email.
+const MAGIC_TTL = "20m";
+
+async function signMagicToken(userId: string): Promise<string> {
+  return new SignJWT({})
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(userId)
+    .setIssuer(config.publicUrl)
+    .setAudience("magic-link")
+    .setIssuedAt()
+    .setExpirationTime(MAGIC_TTL)
+    .sign(key());
+}
+
+async function readMagicToken(token: string): Promise<string | null> {
+  try {
+    const { payload } = await jwtVerify(token, key(), { issuer: config.publicUrl, audience: "magic-link" });
+    return typeof payload.sub === "string" ? payload.sub : null;
+  } catch {
+    return null;
+  }
 }
 
 async function readSession(req: Request): Promise<string | null> {
@@ -82,7 +108,31 @@ function loginPage(error?: string): string {
        <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
        <button type="submit">Sign in</button>
      </form>
-     <p class="sub" style="font-size:.85rem">Use the same email and password you created when connecting Call Me.</p>`
+     <p class="sub" style="font-size:.85rem">Use the same email and password you created when connecting Call Me.</p>
+     <hr style="border:0;border-top:1px solid #8883;margin:1.5rem 0">
+     <p class="sub" style="font-size:.9rem">Forgot your password? Get a one-time sign-in link by email:</p>
+     <form method="POST" action="/account/magic-request">
+       <label>Email<input type="email" name="email" autocomplete="email" required></label>
+       <button type="submit" class="sec">Email me a sign-in link</button>
+     </form>`
+  );
+}
+
+function magicSentPage(email: string): string {
+  return page(
+    "Check your email",
+    `<h1>Check your email</h1>
+     <p class="sub">If an account exists for <strong>${esc(email)}</strong>, a one-time sign-in link is on its way. It expires in 20 minutes.</p>
+     <p style="font-size:.9rem"><a href="/account">← Back to sign in</a></p>`
+  );
+}
+
+function magicEmailHtml(link: string): string {
+  return emailLayout(
+    `<p style="font-size:16px;margin:0 0 14px">Here's your one-time sign-in link.</p>
+     <p style="margin:0 0 22px"><a href="${link}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600">Sign in to Call Me</a></p>
+     <p style="font-size:13px;color:#666;margin:0 0 6px">This link expires in 20 minutes and can be used once. If you didn't request it, you can ignore this email.</p>
+     <p style="font-size:12px;color:#999;margin:14px 0 0;word-break:break-all">Or paste this URL: ${link}</p>`
   );
 }
 
@@ -150,6 +200,51 @@ export function buildAccountRouter(): Router {
 
   router.post("/account/logout", form, (_req, res) => {
     res.clearCookie(COOKIE, { path: "/" });
+    res.redirect(302, "/account");
+  });
+
+  // Send a one-time sign-in link. Always shows the same confirmation regardless
+  // of whether the account exists (avoids leaking which emails are registered).
+  router.post("/account/magic-request", form, async (req, res) => {
+    const email = String((req.body as Record<string, string>).email ?? "").trim();
+    if (email) {
+      try {
+        const user = await findByEmail(email);
+        if (user && config.emailEnabled) {
+          const token = await signMagicToken(user.id);
+          const link = `${config.publicUrl}/account/magic?token=${encodeURIComponent(token)}`;
+          await sendEmail({
+            to: user.email,
+            subject: "Your Call Me sign-in link",
+            html: magicEmailHtml(link),
+            text: `Sign in to Call Me (expires in 20 min): ${link}`,
+          });
+        } else if (user && !config.emailEnabled) {
+          console.warn("[magic] email requested but RESEND_API_KEY is not set.");
+        }
+      } catch (e) {
+        console.error("[magic] send failed:", e);
+      }
+    }
+    res.type("text/html").send(magicSentPage(email));
+  });
+
+  // Consume a one-time sign-in link: verify the token, start a session, land on
+  // the account page.
+  router.get("/account/magic", async (req, res) => {
+    const token = String(req.query.token ?? "");
+    const userId = token ? await readMagicToken(token) : null;
+    if (!userId) {
+      return res
+        .status(400)
+        .type("text/html")
+        .send(loginPage("That sign-in link is invalid or has expired. Request a new one below."));
+    }
+    const user = await findById(userId);
+    if (!user) {
+      return res.status(400).type("text/html").send(loginPage("Account not found."));
+    }
+    setSessionCookie(res, await signSession(user.id));
     res.redirect(302, "/account");
   });
 

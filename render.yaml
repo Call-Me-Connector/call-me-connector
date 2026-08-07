@@ -66,6 +66,17 @@ services:
         sync: false
       - key: STRIPE_PRICE_PRO
         sync: false
+      # Launch coupon auto-applied to the first invoice of every checkout
+      # (e.g. the "$4.99 first month" early-member offer). Leave unset for full price.
+      - key: STRIPE_FIRST_MONTH_COUPON
+        sync: false
       # Comma-separated emails that bypass the paywall (store reviewers).
       - key: REVIEWER_EMAILS
         sync: false
+      # ---- Transactional email (Resend) ----
+      # Setting RESEND_API_KEY turns on outbound email (magic sign-in links).
+      # The From domain must be verified in Resend.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: Call Me <support@getcallme.app>
